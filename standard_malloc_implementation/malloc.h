@@ -1,10 +1,28 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <mach/vm_statistics.h>
 
 typedef struct s_memory_zones t_memory_zones;
 typedef struct s_zone t_zone;
 typedef struct s_memory_node t_memory_node;
+
+#define APPLY_ZONE_HEADER_SHIFT(zone) ((zone) + sizeof(t_zone))
+#define APPLY_NODE_HEADER_SHIFT(node) ((node) + sizeof(t_memory_node))
+#define APPLY_NODE_HEADER_SIZE(size) ((size) + sizeof(t_memory_node))
+
+extern bool gInit;
+extern t_memory_zones gMemoryZones;
+extern size_t gPageSize;
+
+extern size_t gTinyZoneSize;
+extern size_t gTinyNodeSize;
+
+extern size_t gSmallZoneSize;
+extern size_t gSmallNodeSize;
 
 /// We have 3 memory zones to optimize malloc speed and decrease mmap using.
 ///
@@ -40,7 +58,6 @@ typedef struct s_zone {
     t_memory_node* last_free_node;  /// using for fast inserting
     size_t available_size;
     size_t total_size;
-    size_t minimum_node_size;
 } t_zone;
 
 typedef struct s_memory_node {
@@ -55,3 +72,29 @@ typedef enum s_allocation_type {
     Large
 } t_allocation_type;
 
+void* TakeMemoryFromZoneList(t_zone* first_zone, size_t required_size, size_t required_size_to_separate);
+void* TakeMemoryFromZone(t_zone* zone, size_t required_size, size_t required_size_to_separate);
+void* TakeMemoryFromFreeNodes(t_zone* zone, size_t required_size, size_t required_size_to_separate);
+t_memory_node* SplitNode(t_memory_node* old_node, size_t new_node_indent);
+
+static inline t_allocation_type ToType(size_t size) {
+    if (size <= gTinyNodeSize * 8) {
+        return Tiny;
+    }
+    if (size <= gSmallNodeSize * 8) {
+        return Small;
+    }
+    return Large;
+}
+
+static inline size_t CalculateZoneSize(t_allocation_type type, size_t size) {
+    switch (type) {
+        case Tiny:
+            return gTinyZoneSize;
+        case Small:
+            return gSmallZoneSize;
+        case Large:
+            size += sizeof(t_zone) + sizeof(t_memory_node);
+            return size + gPageSize - size % gPageSize;
+    }
+}
