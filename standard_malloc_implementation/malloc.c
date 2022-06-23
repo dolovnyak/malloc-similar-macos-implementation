@@ -1,14 +1,14 @@
-#include "malloc.h"
+#include "malloc_internal.h"
 
 bool gInit = false;
 t_memory_zones gMemoryZones;
 size_t gPageSize;
 
 size_t gTinyZoneSize;
-size_t gTinyNodeSize;
+size_t gTinyAllocationMaxSize;
 
 size_t gSmallZoneSize;
-size_t gSmallNodeSize;
+size_t gSmallAllocationMaxSize;
 
 static inline t_zone* CreateNewZone(size_t size) {
     t_zone* new_zone = (t_zone*)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE,
@@ -30,13 +30,13 @@ static inline bool Init() {
     gPageSize = getpagesize();
 
     gTinyZoneSize = gPageSize * 4;
-    gTinyNodeSize = gTinyZoneSize / 128;
+    gTinyAllocationMaxSize = gTinyZoneSize / 64;
     t_zone* tiny_default_zone = CreateNewZone(CalculateZoneSize(Tiny, 0));
     gMemoryZones.first_tiny_zone = tiny_default_zone;
     gMemoryZones.last_tiny_zone = tiny_default_zone;
 
     gSmallZoneSize = gPageSize * 16;
-    gSmallNodeSize = gSmallZoneSize / 128;
+    gSmallAllocationMaxSize = gSmallZoneSize / 64;
     t_zone* small_default_zone = CreateNewZone(CalculateZoneSize(Small, 0));
     gMemoryZones.first_small_zone = small_default_zone;
     gMemoryZones.last_small_zone = small_default_zone;
@@ -84,12 +84,12 @@ void* malloc(size_t required_size) {
         case Tiny:
             first_zone = gMemoryZones.first_tiny_zone;
             last_zone = &gMemoryZones.last_tiny_zone;
-            required_size_to_separate = SIZE_WITH_NODE_HEADER(gTinyNodeSize);
+            required_size_to_separate = SIZE_WITH_NODE_HEADER(gTinyAllocationMaxSize / 2);
             break;
         case Small:
             first_zone = gMemoryZones.first_small_zone;
             last_zone = &gMemoryZones.last_small_zone;
-            required_size_to_separate = SIZE_WITH_NODE_HEADER(gSmallZoneSize);
+            required_size_to_separate = SIZE_WITH_NODE_HEADER(gSmallAllocationMaxSize / 2);
             break;
         case Large:
             exit(-1);

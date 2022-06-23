@@ -1,4 +1,4 @@
-#include "malloc.h"
+#include "malloc_internal.h"
 
 t_memory_node* SplitNode(t_memory_node* old_node, size_t left_part_size) {
     t_memory_node* new_node = (t_memory_node*)((BYTE*)old_node + SIZE_WITH_NODE_HEADER(left_part_size));
