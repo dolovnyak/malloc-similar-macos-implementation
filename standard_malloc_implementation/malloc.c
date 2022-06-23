@@ -30,13 +30,13 @@ static inline bool Init() {
     gPageSize = getpagesize();
 
     gTinyZoneSize = gPageSize * 4;
-    gTinyNodeSize = gTinyZoneSize / 256;
+    gTinyNodeSize = gTinyZoneSize / 128;
     t_zone* tiny_default_zone = CreateNewZone(CalculateZoneSize(Tiny, 0));
     gMemoryZones.first_tiny_zone = tiny_default_zone;
     gMemoryZones.last_tiny_zone = tiny_default_zone;
 
     gSmallZoneSize = gPageSize * 16;
-    gSmallNodeSize = gSmallZoneSize / 256;
+    gSmallNodeSize = gSmallZoneSize / 128;
     t_zone* small_default_zone = CreateNewZone(CalculateZoneSize(Small, 0));
     gMemoryZones.first_small_zone = small_default_zone;
     gMemoryZones.last_small_zone = small_default_zone;
@@ -58,7 +58,7 @@ void* malloc(size_t required_size) {
         }
     }
 
-    /// 16 byte align (MacOS align). Equal to "usable_size + 16 - usable_size % 16".
+    /// 16 byte align (MacOS align).
     required_size = required_size + 15 & ~15;
     t_allocation_type allocation_type = ToType(required_size);
 
@@ -74,7 +74,7 @@ void* malloc(size_t required_size) {
             gMemoryZones.last_large_allocation->next = large_allocation;
             gMemoryZones.last_large_allocation = large_allocation;
         }
-        return (void*)large_allocation + sizeof(t_zone);
+        return (void*)CAST_TO_BYTE_APPLY_ZONE_SHIFT(large_allocation);
     }
 
     t_zone* first_zone;
@@ -84,12 +84,12 @@ void* malloc(size_t required_size) {
         case Tiny:
             first_zone = gMemoryZones.first_tiny_zone;
             last_zone = &gMemoryZones.last_tiny_zone;
-            required_size_to_separate = gTinyNodeSize;
+            required_size_to_separate = SIZE_WITH_NODE_HEADER(gTinyNodeSize);
             break;
         case Small:
             first_zone = gMemoryZones.first_small_zone;
             last_zone = &gMemoryZones.last_small_zone;
-            required_size_to_separate = gSmallZoneSize;
+            required_size_to_separate = SIZE_WITH_NODE_HEADER(gSmallZoneSize);
             break;
         case Large:
             exit(-1);

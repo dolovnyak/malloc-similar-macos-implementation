@@ -1,10 +1,10 @@
 #include "malloc.h"
 
-t_memory_node* SplitNode(t_memory_node* old_node, size_t new_node_indent) {
-    t_memory_node* new_node = old_node + new_node_indent;
+t_memory_node* SplitNode(t_memory_node* old_node, size_t left_part_size) {
+    t_memory_node* new_node = (t_memory_node*)((BYTE*)old_node + SIZE_WITH_NODE_HEADER(left_part_size));
     new_node->available = true;
     new_node->next = NULL;
-    new_node->usable_size = old_node->usable_size - new_node_indent - sizeof(t_memory_node);
+    new_node->usable_size = old_node->usable_size - SIZE_WITH_NODE_HEADER(left_part_size);
 
     return new_node;
 }
@@ -18,10 +18,11 @@ void* TakeMemoryFromFreeNodes(t_zone* zone, size_t required_size, size_t require
         if (current_node->usable_size >= required_size) {
 
             /// split node if it has enough free space
-            if (current_node->usable_size - required_size >= APPLY_NODE_HEADER_SIZE(required_size_to_separate)) {
-                splitted_node = SplitNode(current_node, APPLY_NODE_HEADER_SIZE(required_size));
+            if (current_node->usable_size - required_size >= required_size_to_separate) {
+                splitted_node = SplitNode(current_node, required_size);
                 splitted_node->next = current_node->next;
                 current_node->next = splitted_node;
+                current_node->usable_size = required_size;
             }
 
             if (prev_node == NULL) { // it also equals to (current_node == zone->first_free_node)
@@ -40,7 +41,7 @@ void* TakeMemoryFromFreeNodes(t_zone* zone, size_t required_size, size_t require
 
             current_node->next = NULL;
             current_node->available = false;
-            return APPLY_NODE_HEADER_SHIFT(current_node);
+            return CAST_TO_BYTE_APPLY_NODE_SHIFT(current_node);
         }
         prev_node = current_node;
     }
@@ -54,16 +55,16 @@ void* TakeMemoryFromZone(t_zone* zone, size_t required_size, size_t required_siz
         return mem;
     }
 
-    if (zone->available_size >= APPLY_NODE_HEADER_SIZE(required_size)) {
+    if (zone->available_size >= SIZE_WITH_NODE_HEADER(required_size)) {
         t_memory_node* node =
-                (t_memory_node*)zone + zone->total_size - zone->available_size + sizeof(t_zone) + sizeof(t_memory_node);
+                (t_memory_node*)((BYTE*)zone + zone->total_size - zone->available_size + sizeof(t_zone));
         node->next = NULL;
         node->usable_size = required_size;
         node->available = false;
 
-        zone->available_size -= APPLY_NODE_HEADER_SIZE(required_size);
+        zone->available_size -= SIZE_WITH_NODE_HEADER(required_size);
 
-        return APPLY_NODE_HEADER_SHIFT(node);
+        return (void*)CAST_TO_BYTE_APPLY_NODE_SHIFT(node);
     }
     return NULL;
 }

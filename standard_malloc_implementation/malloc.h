@@ -10,9 +10,10 @@ typedef struct s_memory_zones t_memory_zones;
 typedef struct s_zone t_zone;
 typedef struct s_memory_node t_memory_node;
 
-#define APPLY_ZONE_HEADER_SHIFT(zone) ((zone) + sizeof(t_zone))
-#define APPLY_NODE_HEADER_SHIFT(node) ((node) + sizeof(t_memory_node))
-#define APPLY_NODE_HEADER_SIZE(size) ((size) + sizeof(t_memory_node))
+#define BYTE uint8_t
+#define CAST_TO_BYTE_APPLY_ZONE_SHIFT(zone) ((BYTE*)(zone) + sizeof(t_zone))
+#define CAST_TO_BYTE_APPLY_NODE_SHIFT(node) ((BYTE*)(node) + sizeof(t_memory_node))
+#define SIZE_WITH_NODE_HEADER(size) ((size) + sizeof(t_memory_node))
 
 extern bool gInit;
 extern t_memory_zones gMemoryZones;
@@ -75,7 +76,7 @@ typedef enum s_allocation_type {
 void* TakeMemoryFromZoneList(t_zone* first_zone, size_t required_size, size_t required_size_to_separate);
 void* TakeMemoryFromZone(t_zone* zone, size_t required_size, size_t required_size_to_separate);
 void* TakeMemoryFromFreeNodes(t_zone* zone, size_t required_size, size_t required_size_to_separate);
-t_memory_node* SplitNode(t_memory_node* old_node, size_t new_node_indent);
+t_memory_node* SplitNode(t_memory_node* old_node, size_t left_part_size);
 
 static inline t_allocation_type ToType(size_t size) {
     if (size <= gTinyNodeSize * 8) {
