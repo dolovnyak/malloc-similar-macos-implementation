@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdlib.h>
-#include <stdbool.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <mach/vm_statistics.h>
@@ -10,15 +9,24 @@
 
 typedef struct s_memory_zones t_memory_zones;
 typedef struct s_zone t_zone;
-typedef struct s_memory_node t_memory_node;
 
 #define BYTE uint8_t
-#define CAST_TO_BYTE_APPLY_ZONE_SHIFT(zone) ((BYTE*)(zone) + sizeof(t_zone))
-#define CAST_TO_BYTE_APPLY_NODE_SHIFT(node) ((BYTE*)(node) + sizeof(t_memory_node))
-#define SIZE_WITH_NODE_HEADER(size) ((size) + sizeof(t_memory_node))
-#define SIZE_WITH_ZONE_HEADER(size) ((size) + sizeof(t_zone))
 
-extern bool gInit;
+#define BOOL BYTE
+#define TRUE 1
+#define FALSE 0
+
+#define NODE_HEADER_SIZE 16
+#define ZONE_HEADER_SIZE sizeof(t_zone)
+
+//#define NODE_AVAILABLE_BIT_MASK 0x00000
+
+#define CAST_TO_BYTE_APPLY_ZONE_SHIFT(zone) ((BYTE*)(zone) + sizeof(t_zone))
+//#define CAST_TO_BYTE_APPLY_NODE_SHIFT(node) ((BYTE*)(node) + NODE_HEADER_SIZE)
+//#define SIZE_WITH_NODE_HEADER(size) ((size) + NODE_HEADER_SIZE)
+//#define SIZE_WITH_ZONE_HEADER(size) ((size) + sizeof(t_zone))
+
+extern BOOL gInit;
 extern t_memory_zones gMemoryZones;
 extern size_t gPageSize;
 
@@ -48,27 +56,44 @@ typedef struct s_memory_zones {
     t_zone* last_large_allocation;
 } t_memory_zones;
 
-/// Each zone contains: * ptr to next zone with equal type.
-///                     * available memory usable_size (not allocated memory usable_size on the end of zone,
-/// if we don't have free blocks we mark new memory block, set it as occupied and change available memory usable_size).
-///                     * first free node ptr: when malloc requested and we searching memory - we check
-/// all free nodes (which been occupied and freed before) to usable_size
-/// zone structure looking like this:
+/// zone memory structure looking like this:
 /// [[zone_header]free_zone_space] <- zone after creating
 /// [[zone_header][[node_header]node_space]free_zone_space] <- zone with one allocated node
 typedef struct s_zone {
     struct s_zone* next;
-    t_memory_node* first_free_node;
-    t_memory_node* last_free_node;  /// using for fast inserting
+    BYTE* first_free_node;
+    BYTE* last_free_node;  /// using for fast inserting
     size_t available_size;
     size_t total_size;
 } t_zone;
 
-typedef struct s_memory_node {
-    size_t usable_size;
-    struct s_memory_node* next;
-    bool available;
-} t_memory_node;
+/// for memory optimization memory_node header doesn't have structure and we work with it using bit operations.
+/// memory_node header size is 16 byte for all types (tiny, small, large).
+
+/// memory_node header for tiny and small objects looks like this:
+/**
+ * memory_node {
+ * 24_bit size;
+ * 24_bit previous_node_size;
+ * 16_bit not_used_memory; // needed for easy bit operations with two int64 numbers.
+ * ---- end of 64 byte
+ * 24_bit offset_from_zone_start;
+ * 24_bit next_free_node_offset_from_zone_start;
+ * 13_bit not_used_memory;
+ * 1_bit  available;
+ * 2_bit  node_type; (tiny/small/large)
+ * ---- end of 128 byte
+}
+ */
+
+/// memory_node header for large objects looks like this:
+/**
+ * large_memory_node {
+ * 64_bit size
+ * 62_bit not_used_memory;
+ * 2_bit  node_type; (tiny/small/large)
+ * }
+ */
 
 typedef enum s_allocation_type {
     Tiny = 0,
@@ -76,12 +101,14 @@ typedef enum s_allocation_type {
     Large
 } t_allocation_type;
 
-void* TakeMemoryFromZoneList(t_zone* first_zone, size_t required_size, size_t required_size_to_separate);
-void* TakeMemoryFromZone(t_zone* zone, size_t required_size, size_t required_size_to_separate);
-void* TakeMemoryFromFreeNodes(t_zone* zone, size_t required_size, size_t required_size_to_separate);
-t_memory_node* SplitNode(t_memory_node* old_node, size_t left_part_size);
+void* take_memory_from_zone_list(t_zone* first_zone, size_t required_size, size_t required_size_to_separate);
+void* take_memory_from_zone(t_zone* zone, size_t required_size, size_t required_size_to_separate);
+void* take_memory_from_free_nodes(t_zone* zone, size_t required_size, size_t required_size_to_separate);
+BYTE* separate_node(BYTE* node, size_t left_part_size);
 
-static inline t_allocation_type ToType(size_t size) {
+BOOL free_memory_in_zone_list(t_zone* first_zone, t_allocation_type zone_type, void* mem);
+
+static inline t_allocation_type to_type(size_t size) {
     if (size <= gTinyAllocationMaxSize) {
         return Tiny;
     }
@@ -91,14 +118,14 @@ static inline t_allocation_type ToType(size_t size) {
     return Large;
 }
 
-static inline size_t CalculateZoneSize(t_allocation_type type, size_t size) {
+static inline size_t calculate_zone_size(t_allocation_type type, size_t size) {
     switch (type) {
         case Tiny:
             return gTinyZoneSize;
         case Small:
             return gSmallZoneSize;
         case Large:
-            size += sizeof(t_zone) + sizeof(t_memory_node);
+            size += ZONE_HEADER_SIZE + NODE_HEADER_SIZE;
             return size + gPageSize - size % gPageSize;
     }
 }

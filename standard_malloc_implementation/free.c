@@ -20,3 +20,18 @@ void free_all() {
 
     bzero(&gMemoryZones, sizeof(t_memory_zones));
 }
+
+bool try_to_free_mem_in_zone_list(t_zone* zone) {
+
+}
+
+void free(void* ptr) {
+    if (ptr == NULL) {
+        return;
+    }
+
+    if (free_memory_in_zone_list()) {
+
+    }
+    /// обойти все зоны и проверить содержат ли какая-то из них нужный адрес, если содержит
+}

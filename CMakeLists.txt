@@ -19,9 +19,12 @@ target_include_directories(${MALLOC_LIB} PUBLIC standard_malloc_implementation/)
 set(MALLOC_TESTS ${PROJECT_NAME}_tests)
 add_subdirectory(googletest)
 
+add_executable(AAA standard_malloc_implementation/main.c)
+
 add_executable(${MALLOC_TESTS}
         standard_malloc_implementation/tests/malloc_tests.cpp
         standard_malloc_implementation/tests/free_tests.cpp
+        standard_malloc_implementation/tests/utilities_test.cpp
         )
 
 target_include_directories(${MALLOC_TESTS} PUBLIC
