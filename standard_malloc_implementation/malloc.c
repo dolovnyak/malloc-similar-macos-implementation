@@ -16,8 +16,8 @@ static inline t_zone* create_new_zone(size_t size) {
     if ((void*)new_zone == MAP_FAILED) {
         return NULL;
     }
-    new_zone->available_size = size - sizeof(t_zone);
-    new_zone->total_size = size - sizeof(t_zone);
+    new_zone->last_allocated_node = NULL;
+    new_zone->total_size = size - ZONE_HEADER_SIZE;
     new_zone->first_free_node = NULL;
     new_zone->last_free_node = NULL;
     new_zone->next = NULL;
@@ -95,7 +95,7 @@ void* malloc(size_t required_size) {
             exit(-1);
     }
 
-    void* memory = take_memory_from_zone_list(first_zone, required_size, required_size_to_separate);
+    void* memory = take_memory_from_zone_list(first_zone, required_size, required_size_to_separate, allocation_type);
     if (!memory) {
         t_zone* new_zone = create_new_zone(calculate_zone_size(allocation_type, required_size));
         if (!new_zone) {
@@ -103,7 +103,7 @@ void* malloc(size_t required_size) {
         }
         (*last_zone)->next = new_zone;
         *last_zone = new_zone;
-        memory = take_memory_from_zone_list(new_zone, required_size, required_size_to_separate);
+        memory = take_memory_from_zone_list(new_zone, required_size, required_size_to_separate, allocation_type);
     }
     return memory;
 }

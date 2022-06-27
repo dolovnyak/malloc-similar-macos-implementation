@@ -84,3 +84,13 @@ static inline t_allocation_type get_node_allocation_type(const BYTE* node_header
 static inline void set_node_allocation_type(BYTE* node_header, t_allocation_type type) {
     set((uint64_t*)node_header + 1, MASK_NODE_TYPE, SHIFT_NODE_TYPE, (uint64_t)type);
 }
+
+
+static inline BYTE* get_next_free_node(BYTE* zone_start, BYTE* current_node) {
+    uint64_t next_free_node_offset = get_next_free_node_zone_start_offset(current_node);
+    if (next_free_node_offset == 0) {
+        return NULL;
+    }
+    return zone_start + next_free_node_offset;
+}
+

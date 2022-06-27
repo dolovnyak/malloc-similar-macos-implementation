@@ -19,13 +19,6 @@ typedef struct s_zone t_zone;
 #define NODE_HEADER_SIZE 16
 #define ZONE_HEADER_SIZE sizeof(t_zone)
 
-//#define NODE_AVAILABLE_BIT_MASK 0x00000
-
-#define CAST_TO_BYTE_APPLY_ZONE_SHIFT(zone) ((BYTE*)(zone) + sizeof(t_zone))
-//#define CAST_TO_BYTE_APPLY_NODE_SHIFT(node) ((BYTE*)(node) + NODE_HEADER_SIZE)
-//#define SIZE_WITH_NODE_HEADER(size) ((size) + NODE_HEADER_SIZE)
-//#define SIZE_WITH_ZONE_HEADER(size) ((size) + sizeof(t_zone))
-
 extern BOOL gInit;
 extern t_memory_zones gMemoryZones;
 extern size_t gPageSize;
@@ -63,7 +56,7 @@ typedef struct s_zone {
     struct s_zone* next;
     BYTE* first_free_node;
     BYTE* last_free_node;  /// using for fast inserting
-    size_t available_size;
+    BYTE* last_allocated_node;
     size_t total_size;
 } t_zone;
 
@@ -97,14 +90,14 @@ typedef struct s_zone {
 
 typedef enum s_allocation_type {
     Tiny = 0,
-    Small,
-    Large
+    Small = 1,
+    Large = 2
 } t_allocation_type;
 
-void* take_memory_from_zone_list(t_zone* first_zone, size_t required_size, size_t required_size_to_separate);
-void* take_memory_from_zone(t_zone* zone, size_t required_size, size_t required_size_to_separate);
+void* take_memory_from_zone_list(t_zone* first_zone, size_t required_size, size_t required_size_to_separate, t_allocation_type type);
+void* take_memory_from_zone(t_zone* zone, size_t required_size, size_t required_size_to_separate, t_allocation_type type);
 void* take_memory_from_free_nodes(t_zone* zone, size_t required_size, size_t required_size_to_separate);
-BYTE* separate_node(BYTE* node, size_t left_part_size);
+void separate_free_node(BYTE* first_node, size_t first_node_new_size, t_zone* zone);
 
 BOOL free_memory_in_zone_list(t_zone* first_zone, t_allocation_type zone_type, void* mem);
 

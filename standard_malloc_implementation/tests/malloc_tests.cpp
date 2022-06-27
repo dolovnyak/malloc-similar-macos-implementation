@@ -1,308 +1,336 @@
-//#include <gtest/gtest.h>
-//
-//extern "C" {
-//#include "malloc_internal.h"
-//}
-//
-//#define TEST_ZONE_SIZE 4096
-//
-//static BYTE* test_zone = (BYTE*)mmap(0, TEST_ZONE_SIZE, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE,
-//                                     VM_MAKE_TAG(VM_MEMORY_MALLOC), 0);
-//static BYTE* test_empty_zone = (BYTE*)mmap(0, sizeof(t_zone), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE,
-//                                           VM_MAKE_TAG(VM_MEMORY_MALLOC), 0);
-//
-//TEST(Split_Node, CheckCorrect) {
-//    bzero(test_zone, TEST_ZONE_SIZE);
-//    t_memory_node* node = (t_memory_node*)test_zone;
-//    node->next_free_node = NULL;
-//    node->available = true;
-//    node->usable_size = 128;
-//    size_t left_part_size = 40;
-//    t_memory_node* splitted_node = separate_node(node, left_part_size);
-//    ASSERT_EQ((BYTE*)splitted_node, (BYTE*)node + SIZE_WITH_NODE_HEADER(left_part_size));
-//    ASSERT_EQ(splitted_node->usable_size, 128 - SIZE_WITH_NODE_HEADER(left_part_size));
-//    ASSERT_EQ(splitted_node->next_free_node, nullptr);
-//}
-//
-//TEST(Take_Mem_From_Free_Nodes, Empty_List) {
-//    t_zone* zone = (t_zone*)test_zone;
-//    bzero(test_zone, TEST_ZONE_SIZE);
-//    zone->next = nullptr;
-//    zone->total_size = TEST_ZONE_SIZE;
-//    zone->first_free_node = nullptr;
-//    zone->last_free_node = nullptr;
-//    void* mem = take_memory_from_zone_list(zone, 16, 64);
-//    ASSERT_EQ(mem, nullptr);
-//}
-//
-//TEST(Take_Mem_From_Free_Nodes, Main_Check) {
-//    t_zone* empty_zone = (t_zone*)test_empty_zone;
-//    empty_zone->first_free_node = nullptr;
-//    empty_zone->last_free_node = nullptr;
-//    empty_zone->total_size = 1337;
-//    empty_zone->available_size = 0;
-//
-//    {
-//        /// check first node without separated
-//        bzero(test_zone, TEST_ZONE_SIZE);
-//        t_memory_node* node1 = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
-//        node1->usable_size = 38;
-//        node1->available = true;
-//
-//        t_memory_node* node2 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node1) + node1->usable_size);
-//        node2->usable_size = 26;
-//        node2->available = true;
-//        node1->next_free_node = node2;
-//
-//        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
-//        node3->usable_size = 64;
-//        node3->available = true;
-//        node2->next_free_node = node3;
-//        node3->next_free_node = nullptr;
-//
-//        t_zone* zone = (t_zone*)test_zone;
-//        zone->available_size = 0;
-//        zone->total_size = TEST_ZONE_SIZE;
-//        zone->first_free_node = node1;
-//        zone->last_free_node = node3;
-//        zone->next = nullptr;
-//        empty_zone->next = zone;
-//
-//        void* mem = take_memory_from_zone_list(empty_zone, 16, 64);
-//        ASSERT_TRUE(mem != nullptr);
-//        ASSERT_EQ(zone->first_free_node, node2);
-//        ASSERT_EQ(zone->last_free_node, node3);
-//        ASSERT_EQ(node2->next_free_node, node3);
-//        ASSERT_EQ(node3->next_free_node, nullptr);
-//        t_memory_node* node = (t_memory_node*)CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone);
-//        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
-//        ASSERT_EQ(node, node1);
-//        ASSERT_EQ(node->available, false);
-//        ASSERT_EQ(node->usable_size, 38);
-//        ASSERT_EQ(node->next_free_node, nullptr);
-//    }
-//
-//    {
-//        /// check last node without separated
-//        bzero(test_zone, TEST_ZONE_SIZE);
-//        t_memory_node* node1 = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
-//        node1->usable_size = 38;
-//        node1->available = true;
-//
-//        t_memory_node* node2 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node1) + node1->usable_size);
-//        node2->usable_size = 26;
-//        node2->available = true;
-//        node1->next_free_node = node2;
-//
-//        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
-//        node3->usable_size = 111; // in 112 it will be separate
-//        node3->available = true;
-//        node2->next_free_node = node3;
-//        node3->next_free_node = nullptr;
-//
-//        t_zone* zone = (t_zone*)test_zone;
-//        zone->available_size = 0;
-//        zone->total_size = TEST_ZONE_SIZE;
-//        zone->first_free_node = node1;
-//        zone->last_free_node = node3;
-//        zone->next = empty_zone;
-//        empty_zone->next = nullptr;
-//
-//        void* mem = take_memory_from_zone_list(zone, 48, 64);
-//        ASSERT_TRUE(mem != nullptr);
-//        ASSERT_EQ(zone->first_free_node, node1);
-//        ASSERT_EQ(zone->last_free_node, node2);
-//        ASSERT_EQ(node1->next_free_node, node2);
-//        ASSERT_EQ(node2->next_free_node, nullptr);
-//        t_memory_node* node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + 38 + 26 +
-//                                               sizeof(t_memory_node) * 2);
-//        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
-//        ASSERT_EQ(node, node3);
-//        ASSERT_EQ(node->available, false);
-//        ASSERT_EQ(node->usable_size, 111);
-//        ASSERT_EQ(node->next_free_node, nullptr);
-//    }
-//
-//    {
-//        /// check middle node without separated
-//        bzero(test_zone, TEST_ZONE_SIZE);
-//        t_memory_node* node1 = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
-//        node1->usable_size = 38;
-//        node1->available = true;
-//
-//        t_memory_node* node2 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node1) + node1->usable_size);
-//        node2->usable_size = 56;
-//        node2->available = true;
-//        node1->next_free_node = node2;
-//
-//        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
-//        node3->usable_size = 64;
-//        node3->available = true;
-//        node2->next_free_node = node3;
-//        node3->next_free_node = nullptr;
-//
-//        t_zone* zone = (t_zone*)test_zone;
-//        zone->available_size = 0;
-//        zone->total_size = TEST_ZONE_SIZE;
-//        zone->first_free_node = node1;
-//        zone->last_free_node = node3;
-//        zone->next = empty_zone;
-//        empty_zone->next = nullptr;
-//
-//        void* mem = take_memory_from_zone_list(zone, 48, 64);
-//        ASSERT_TRUE(mem != nullptr);
-//        ASSERT_EQ(zone->first_free_node, node1);
-//        ASSERT_EQ(zone->last_free_node, node3);
-//        ASSERT_EQ(node1->next_free_node, node3);
-//        ASSERT_EQ(node3->next_free_node, nullptr);
-//        t_memory_node* node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + 38 + sizeof(t_memory_node));
-//        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
-//        ASSERT_EQ(node, node2);
-//        ASSERT_EQ(node->available, false);
-//        ASSERT_EQ(node->usable_size, 56);
-//        ASSERT_EQ(node->next_free_node, nullptr);
-//    }
-//
-//    {
-//        /// check first node with separated
-//        bzero(test_zone, TEST_ZONE_SIZE);
-//        t_memory_node* node1 = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
-//        node1->usable_size = 136;
-//        node1->available = true;
-//
-//        t_memory_node* node2 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node1) + node1->usable_size);
-//        node2->usable_size = 162;
-//        node2->available = true;
-//        node1->next_free_node = node2;
-//
-//        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
-//        node3->usable_size = 181;
-//        node3->available = true;
-//        node2->next_free_node = node3;
-//        node3->next_free_node = nullptr;
-//
-//        t_zone* zone = (t_zone*)test_zone;
-//        zone->available_size = 0;
-//        zone->total_size = TEST_ZONE_SIZE;
-//        zone->first_free_node = node1;
-//        zone->last_free_node = node3;
-//        zone->next = empty_zone;
-//        empty_zone->next = nullptr;
-//
-//        void* mem = take_memory_from_zone_list(zone, 48, 64);
-//        ASSERT_TRUE(mem != nullptr);
-//
-//        t_memory_node* new_separated_node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + 48 +
-//                                                             sizeof(t_memory_node));
-//        ASSERT_EQ(new_separated_node->usable_size, 136 - 48 - sizeof(t_memory_node));
-//        ASSERT_EQ(new_separated_node->available, true);
-//        ASSERT_EQ(new_separated_node->next_free_node, node2);
-//        ASSERT_EQ(node2->next_free_node, node3);
-//        ASSERT_EQ(node3->next_free_node, nullptr);
-//        ASSERT_EQ(zone->first_free_node, new_separated_node);
-//        ASSERT_EQ(zone->last_free_node, node3);
-//        t_memory_node* node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
-//        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
-//        ASSERT_EQ(node, node1);
-//        ASSERT_EQ(node->available, false);
-//        ASSERT_EQ(node->usable_size, 48);
-//        ASSERT_EQ(node->next_free_node, nullptr);
-//    }
-//
-//    {
-//        /// check middle node with separated
-//        bzero(test_zone, TEST_ZONE_SIZE);
-//        t_memory_node* node1 = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
-//        node1->usable_size = 47;
-//        node1->available = true;
-//
-//        t_memory_node* node2 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node1) + node1->usable_size);
-//        node2->usable_size = 162;
-//        node2->available = true;
-//        node1->next_free_node = node2;
-//
-//        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
-//        node3->usable_size = 181;
-//        node3->available = true;
-//        node2->next_free_node = node3;
-//        node3->next_free_node = nullptr;
-//
-//        t_zone* zone = (t_zone*)test_zone;
-//        zone->available_size = 0;
-//        zone->total_size = TEST_ZONE_SIZE;
-//        zone->first_free_node = node1;
-//        zone->last_free_node = node3;
-//        zone->next = empty_zone;
-//        empty_zone->next = nullptr;
-//
-//        void* mem = take_memory_from_zone_list(zone, 48, 64);
-//        ASSERT_TRUE(mem != nullptr);
-//
-//        t_memory_node* new_separated_node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + 47 + 48 +
-//                                                             sizeof(t_memory_node) * 2);
-//        ASSERT_EQ(new_separated_node->usable_size, 162 - 48 - sizeof(t_memory_node));
-//        ASSERT_EQ(new_separated_node->available, true);
-//        ASSERT_EQ(zone->first_free_node, node1);
-//        ASSERT_EQ(node1->next_free_node, new_separated_node);
-//        ASSERT_EQ(new_separated_node->next_free_node, node3);
-//        ASSERT_EQ(node3->next_free_node, nullptr);
-//        ASSERT_EQ(zone->last_free_node, node3);
-//        t_memory_node* node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + SIZE_WITH_NODE_HEADER(47));
-//        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
-//        ASSERT_EQ(node, node2);
-//        ASSERT_EQ(node->available, false);
-//        ASSERT_EQ(node->usable_size, 48);
-//        ASSERT_EQ(node->next_free_node, nullptr);
-//    }
-//
-//    {
-//        /// check last node with separated
-//        bzero(test_zone, TEST_ZONE_SIZE);
-//        t_memory_node* node1 = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
-//        node1->usable_size = 47;
-//        node1->available = true;
-//
-//        t_memory_node* node2 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node1) + node1->usable_size);
-//        node2->usable_size = 22;
-//        node2->available = true;
-//        node1->next_free_node = node2;
-//
-//        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
-//        node3->usable_size = 181;
-//        node3->available = true;
-//        node2->next_free_node = node3;
-//        node3->next_free_node = nullptr;
-//
-//        t_zone* zone = (t_zone*)test_zone;
-//        zone->available_size = 0;
-//        zone->total_size = TEST_ZONE_SIZE;
-//        zone->first_free_node = node1;
-//        zone->last_free_node = node3;
-//        zone->next = empty_zone;
-//        empty_zone->next = nullptr;
-//
-//        void* mem = take_memory_from_zone_list(zone, 48, 64);
-//        ASSERT_TRUE(mem != nullptr);
-//
-//        t_memory_node* new_separated_node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + 47 + 22 + 48 +
-//                                                             sizeof(t_memory_node) * 3);
-//        ASSERT_EQ(new_separated_node->usable_size, 181 - 48 - sizeof(t_memory_node));
-//        ASSERT_EQ(new_separated_node->available, true);
-//        ASSERT_EQ(zone->first_free_node, node1);
-//        ASSERT_EQ(node1->next_free_node, node2);
-//        ASSERT_EQ(node2->next_free_node, new_separated_node);
-//        ASSERT_EQ(new_separated_node->next_free_node, nullptr);
-//        ASSERT_EQ(zone->last_free_node, new_separated_node);
-//        t_memory_node* node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + SIZE_WITH_NODE_HEADER(47) +
-//                                               SIZE_WITH_NODE_HEADER(22));
-//        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
-//        ASSERT_EQ(node, node3);
-//        ASSERT_EQ(node->available, false);
-//        ASSERT_EQ(node->usable_size, 48);
-//        ASSERT_EQ(node->next_free_node, nullptr);
-//    }
-//}
-//
+#include <gtest/gtest.h>
+
+extern "C" {
+#include "malloc_internal.h"
+#include "utilities.h"
+}
+
+#define TEST_ZONE_SIZE 4096
+
+static BYTE* test_zone = (BYTE*)mmap(0, TEST_ZONE_SIZE, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE,
+                                     VM_MAKE_TAG(VM_MEMORY_MALLOC), 0);
+static BYTE* test_empty_zone = (BYTE*)mmap(0, sizeof(t_zone), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE,
+                                           VM_MAKE_TAG(VM_MEMORY_MALLOC), 0);
+
+TEST(Split_Node, Check_Correct) {
+    bzero(test_zone, TEST_ZONE_SIZE);
+    t_zone* zone = (t_zone*)test_zone;
+    BYTE* node = ((BYTE*)zone + 248);
+
+    zone->last_free_node = node;
+
+    set_node_size(node, 128);
+    set_previous_node_size(node, 52);
+    set_node_zone_start_offset(node, 248);
+    set_next_free_node_zone_start_offset(node, 28);
+    set_node_available(node, TRUE);
+    set_node_allocation_type(node, Small);
+
+    size_t first_node_new_size = 48;
+    separate_free_node(node, first_node_new_size, zone);
+    BYTE* new_node = node + NODE_HEADER_SIZE + get_node_size(node);
+
+    ASSERT_EQ(get_node_size(node), 48);
+    ASSERT_EQ(get_previous_node_size(node), 52);
+    ASSERT_EQ(get_node_zone_start_offset(node), 248);
+    ASSERT_EQ(get_next_free_node_zone_start_offset(node), 248 + NODE_HEADER_SIZE + 48);
+    ASSERT_EQ(get_next_free_node((BYTE*)zone, node), new_node);
+    ASSERT_EQ(get_node_available(node), TRUE);
+    ASSERT_EQ(get_node_allocation_type(node), Small);
+
+    ASSERT_EQ(get_node_size(new_node), 128 - NODE_HEADER_SIZE - first_node_new_size);
+    ASSERT_EQ(get_previous_node_size(new_node), 48);
+    ASSERT_EQ(get_node_zone_start_offset(new_node), 248 + NODE_HEADER_SIZE + 48);
+    ASSERT_EQ((BYTE*)zone + get_node_zone_start_offset(new_node), new_node);
+    ASSERT_EQ(get_next_free_node_zone_start_offset(new_node), 28);
+    ASSERT_EQ(get_node_available(new_node), TRUE);
+    ASSERT_EQ(get_node_allocation_type(new_node), Small);
+}
+
+TEST(Take_Mem_From_Free_Nodes, Empty_List) {
+    t_zone* zone = (t_zone*)test_zone;
+    bzero(test_zone, TEST_ZONE_SIZE);
+    zone->next = nullptr;
+    zone->total_size = TEST_ZONE_SIZE;
+    zone->first_free_node = nullptr;
+    zone->last_free_node = nullptr;
+    void* mem = take_memory_from_zone_list(zone, 16, 64, Small);
+    ASSERT_EQ(mem, nullptr);
+}
+
+TEST(Take_Mem_From_Free_Nodes, Main_Check) {
+    t_zone* empty_zone = (t_zone*)test_empty_zone;
+    empty_zone->first_free_node = nullptr;
+    empty_zone->last_free_node = nullptr;
+    empty_zone->total_size = 1337;
+    empty_zone->last_allocated_node = nullptr;
+
+    {
+        /// check first node without separated
+        bzero(test_zone, TEST_ZONE_SIZE);
+
+        BYTE* node1 = test_zone + ZONE_HEADER_SIZE;
+        set_node_size(node1, 38);
+        set_node_available(node1, TRUE);
+
+        BYTE* node2 = node1 + NODE_HEADER_SIZE + get_node_size(node1);
+        set_node_size(node2, 26);
+        set_node_available(node2, TRUE);
+        set_node_zone_start_offset()
+        set_next_free_node_zone_start_offset(node1, );
+        node2->usable_size = 26;
+        node2->available = true;
+        node1->next_free_node = node2;
+
+        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
+        node3->usable_size = 64;
+        node3->available = true;
+        node2->next_free_node = node3;
+        node3->next_free_node = nullptr;
+
+        t_zone* zone = (t_zone*)test_zone;
+        zone->available_size = 0;
+        zone->total_size = TEST_ZONE_SIZE;
+        zone->first_free_node = node1;
+        zone->last_free_node = node3;
+        zone->next = nullptr;
+        empty_zone->next = zone;
+
+        void* mem = take_memory_from_zone_list(empty_zone, 16, 64);
+        ASSERT_TRUE(mem != nullptr);
+        ASSERT_EQ(zone->first_free_node, node2);
+        ASSERT_EQ(zone->last_free_node, node3);
+        ASSERT_EQ(node2->next_free_node, node3);
+        ASSERT_EQ(node3->next_free_node, nullptr);
+        t_memory_node* node = (t_memory_node*)CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone);
+        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
+        ASSERT_EQ(node, node1);
+        ASSERT_EQ(node->available, false);
+        ASSERT_EQ(node->usable_size, 38);
+        ASSERT_EQ(node->next_free_node, nullptr);
+    }
+
+    {
+        /// check last node without separated
+        bzero(test_zone, TEST_ZONE_SIZE);
+        t_memory_node* node1 = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
+        node1->usable_size = 38;
+        node1->available = true;
+
+        t_memory_node* node2 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node1) + node1->usable_size);
+        node2->usable_size = 26;
+        node2->available = true;
+        node1->next_free_node = node2;
+
+        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
+        node3->usable_size = 111; // in 112 it will be separate
+        node3->available = true;
+        node2->next_free_node = node3;
+        node3->next_free_node = nullptr;
+
+        t_zone* zone = (t_zone*)test_zone;
+        zone->available_size = 0;
+        zone->total_size = TEST_ZONE_SIZE;
+        zone->first_free_node = node1;
+        zone->last_free_node = node3;
+        zone->next = empty_zone;
+        empty_zone->next = nullptr;
+
+        void* mem = take_memory_from_zone_list(zone, 48, 64);
+        ASSERT_TRUE(mem != nullptr);
+        ASSERT_EQ(zone->first_free_node, node1);
+        ASSERT_EQ(zone->last_free_node, node2);
+        ASSERT_EQ(node1->next_free_node, node2);
+        ASSERT_EQ(node2->next_free_node, nullptr);
+        t_memory_node* node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + 38 + 26 +
+                                               sizeof(t_memory_node) * 2);
+        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
+        ASSERT_EQ(node, node3);
+        ASSERT_EQ(node->available, false);
+        ASSERT_EQ(node->usable_size, 111);
+        ASSERT_EQ(node->next_free_node, nullptr);
+    }
+
+    {
+        /// check middle node without separated
+        bzero(test_zone, TEST_ZONE_SIZE);
+        t_memory_node* node1 = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
+        node1->usable_size = 38;
+        node1->available = true;
+
+        t_memory_node* node2 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node1) + node1->usable_size);
+        node2->usable_size = 56;
+        node2->available = true;
+        node1->next_free_node = node2;
+
+        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
+        node3->usable_size = 64;
+        node3->available = true;
+        node2->next_free_node = node3;
+        node3->next_free_node = nullptr;
+
+        t_zone* zone = (t_zone*)test_zone;
+        zone->available_size = 0;
+        zone->total_size = TEST_ZONE_SIZE;
+        zone->first_free_node = node1;
+        zone->last_free_node = node3;
+        zone->next = empty_zone;
+        empty_zone->next = nullptr;
+
+        void* mem = take_memory_from_zone_list(zone, 48, 64);
+        ASSERT_TRUE(mem != nullptr);
+        ASSERT_EQ(zone->first_free_node, node1);
+        ASSERT_EQ(zone->last_free_node, node3);
+        ASSERT_EQ(node1->next_free_node, node3);
+        ASSERT_EQ(node3->next_free_node, nullptr);
+        t_memory_node* node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + 38 + sizeof(t_memory_node));
+        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
+        ASSERT_EQ(node, node2);
+        ASSERT_EQ(node->available, false);
+        ASSERT_EQ(node->usable_size, 56);
+        ASSERT_EQ(node->next_free_node, nullptr);
+    }
+
+    {
+        /// check first node with separated
+        bzero(test_zone, TEST_ZONE_SIZE);
+        t_memory_node* node1 = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
+        node1->usable_size = 136;
+        node1->available = true;
+
+        t_memory_node* node2 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node1) + node1->usable_size);
+        node2->usable_size = 162;
+        node2->available = true;
+        node1->next_free_node = node2;
+
+        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
+        node3->usable_size = 181;
+        node3->available = true;
+        node2->next_free_node = node3;
+        node3->next_free_node = nullptr;
+
+        t_zone* zone = (t_zone*)test_zone;
+        zone->available_size = 0;
+        zone->total_size = TEST_ZONE_SIZE;
+        zone->first_free_node = node1;
+        zone->last_free_node = node3;
+        zone->next = empty_zone;
+        empty_zone->next = nullptr;
+
+        void* mem = take_memory_from_zone_list(zone, 48, 64);
+        ASSERT_TRUE(mem != nullptr);
+
+        t_memory_node* new_separated_node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + 48 +
+                                                             sizeof(t_memory_node));
+        ASSERT_EQ(new_separated_node->usable_size, 136 - 48 - sizeof(t_memory_node));
+        ASSERT_EQ(new_separated_node->available, true);
+        ASSERT_EQ(new_separated_node->next_free_node, node2);
+        ASSERT_EQ(node2->next_free_node, node3);
+        ASSERT_EQ(node3->next_free_node, nullptr);
+        ASSERT_EQ(zone->first_free_node, new_separated_node);
+        ASSERT_EQ(zone->last_free_node, node3);
+        t_memory_node* node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
+        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
+        ASSERT_EQ(node, node1);
+        ASSERT_EQ(node->available, false);
+        ASSERT_EQ(node->usable_size, 48);
+        ASSERT_EQ(node->next_free_node, nullptr);
+    }
+
+    {
+        /// check middle node with separated
+        bzero(test_zone, TEST_ZONE_SIZE);
+        t_memory_node* node1 = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
+        node1->usable_size = 47;
+        node1->available = true;
+
+        t_memory_node* node2 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node1) + node1->usable_size);
+        node2->usable_size = 162;
+        node2->available = true;
+        node1->next_free_node = node2;
+
+        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
+        node3->usable_size = 181;
+        node3->available = true;
+        node2->next_free_node = node3;
+        node3->next_free_node = nullptr;
+
+        t_zone* zone = (t_zone*)test_zone;
+        zone->available_size = 0;
+        zone->total_size = TEST_ZONE_SIZE;
+        zone->first_free_node = node1;
+        zone->last_free_node = node3;
+        zone->next = empty_zone;
+        empty_zone->next = nullptr;
+
+        void* mem = take_memory_from_zone_list(zone, 48, 64);
+        ASSERT_TRUE(mem != nullptr);
+
+        t_memory_node* new_separated_node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + 47 + 48 +
+                                                             sizeof(t_memory_node) * 2);
+        ASSERT_EQ(new_separated_node->usable_size, 162 - 48 - sizeof(t_memory_node));
+        ASSERT_EQ(new_separated_node->available, true);
+        ASSERT_EQ(zone->first_free_node, node1);
+        ASSERT_EQ(node1->next_free_node, new_separated_node);
+        ASSERT_EQ(new_separated_node->next_free_node, node3);
+        ASSERT_EQ(node3->next_free_node, nullptr);
+        ASSERT_EQ(zone->last_free_node, node3);
+        t_memory_node* node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + SIZE_WITH_NODE_HEADER(47));
+        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
+        ASSERT_EQ(node, node2);
+        ASSERT_EQ(node->available, false);
+        ASSERT_EQ(node->usable_size, 48);
+        ASSERT_EQ(node->next_free_node, nullptr);
+    }
+
+    {
+        /// check last node with separated
+        bzero(test_zone, TEST_ZONE_SIZE);
+        t_memory_node* node1 = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone));
+        node1->usable_size = 47;
+        node1->available = true;
+
+        t_memory_node* node2 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node1) + node1->usable_size);
+        node2->usable_size = 22;
+        node2->available = true;
+        node1->next_free_node = node2;
+
+        t_memory_node* node3 = (t_memory_node*)(CAST_TO_BYTE_APPLY_NODE_SHIFT(node2) + node2->usable_size);
+        node3->usable_size = 181;
+        node3->available = true;
+        node2->next_free_node = node3;
+        node3->next_free_node = nullptr;
+
+        t_zone* zone = (t_zone*)test_zone;
+        zone->available_size = 0;
+        zone->total_size = TEST_ZONE_SIZE;
+        zone->first_free_node = node1;
+        zone->last_free_node = node3;
+        zone->next = empty_zone;
+        empty_zone->next = nullptr;
+
+        void* mem = take_memory_from_zone_list(zone, 48, 64);
+        ASSERT_TRUE(mem != nullptr);
+
+        t_memory_node* new_separated_node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + 47 + 22 + 48 +
+                                                             sizeof(t_memory_node) * 3);
+        ASSERT_EQ(new_separated_node->usable_size, 181 - 48 - sizeof(t_memory_node));
+        ASSERT_EQ(new_separated_node->available, true);
+        ASSERT_EQ(zone->first_free_node, node1);
+        ASSERT_EQ(node1->next_free_node, node2);
+        ASSERT_EQ(node2->next_free_node, new_separated_node);
+        ASSERT_EQ(new_separated_node->next_free_node, nullptr);
+        ASSERT_EQ(zone->last_free_node, new_separated_node);
+        t_memory_node* node = (t_memory_node*)(CAST_TO_BYTE_APPLY_ZONE_SHIFT(test_zone) + SIZE_WITH_NODE_HEADER(47) +
+                                               SIZE_WITH_NODE_HEADER(22));
+        ASSERT_EQ(CAST_TO_BYTE_APPLY_NODE_SHIFT(node), (BYTE*)mem);
+        ASSERT_EQ(node, node3);
+        ASSERT_EQ(node->available, false);
+        ASSERT_EQ(node->usable_size, 48);
+        ASSERT_EQ(node->next_free_node, nullptr);
+    }
+}
+
 //TEST(Take_Memory_From_Zone, Main_Check) {
 //    t_zone* empty_zone = (t_zone*)test_empty_zone;
 //    empty_zone->first_free_node = nullptr;
