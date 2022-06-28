@@ -74,7 +74,7 @@ void* malloc(size_t required_size) {
             gMemoryZones.last_large_allocation->next = large_allocation;
             gMemoryZones.last_large_allocation = large_allocation;
         }
-        return (void*)CAST_TO_BYTE_APPLY_ZONE_SHIFT(large_allocation);
+        return (void*)((BYTE*)large_allocation + ZONE_HEADER_SIZE);
     }
 
     t_zone* first_zone;

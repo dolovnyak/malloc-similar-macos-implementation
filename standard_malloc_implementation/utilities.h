@@ -94,3 +94,11 @@ static inline BYTE* get_next_free_node(BYTE* zone_start, BYTE* current_node) {
     return zone_start + next_free_node_offset;
 }
 
+static inline void set_next_free_node(BYTE* current_node, BYTE* node_to_set) {
+    if (!node_to_set) {
+        set_next_free_node_zone_start_offset(current_node, 0);
+        return;
+    }
+    set_next_free_node_zone_start_offset(current_node, get_node_zone_start_offset(node_to_set));
+}
+

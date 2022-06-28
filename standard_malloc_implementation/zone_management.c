@@ -65,7 +65,7 @@ void* take_memory_from_free_nodes(t_zone* zone, size_t required_size, size_t req
             set_next_free_node_zone_start_offset(current_node, 0);
             set_node_available(current_node, FALSE);
 
-            return current_node - NODE_HEADER_SIZE;
+            return current_node + NODE_HEADER_SIZE;
         }
         prev_node = current_node;
     }
