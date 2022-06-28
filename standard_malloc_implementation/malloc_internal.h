@@ -94,6 +94,8 @@ typedef enum s_allocation_type {
     Large = 2
 } t_allocation_type;
 
+BOOL init();
+
 void* take_memory_from_zone_list(t_zone* first_zone, size_t required_size, size_t required_size_to_separate, t_allocation_type type);
 void* take_memory_from_zone(t_zone* zone, size_t required_size, size_t required_size_to_separate, t_allocation_type type);
 void* take_memory_from_free_nodes(t_zone* zone, size_t required_size, size_t required_size_to_separate);

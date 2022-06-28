@@ -81,8 +81,8 @@ void* take_not_marked_memory_from_zone(t_zone* zone, size_t required_size, t_all
 
     if (last_allocated_node != NULL) {
         last_allocated_node_size = get_node_size(last_allocated_node);
-        zone_occupied_memory_size = (uint64_t)((last_allocated_node + NODE_HEADER_SIZE + last_allocated_node_size) - (BYTE*)zone);
-        zone_available_size = (zone->total_size + ZONE_HEADER_SIZE) - zone_occupied_memory_size;
+        zone_occupied_memory_size = (uint64_t)((last_allocated_node + NODE_HEADER_SIZE + last_allocated_node_size) - (BYTE*)zone - ZONE_HEADER_SIZE);
+        zone_available_size = zone->total_size - zone_occupied_memory_size;
     }
 
     if (zone_available_size >= NODE_HEADER_SIZE + required_size) {
@@ -90,12 +90,13 @@ void* take_not_marked_memory_from_zone(t_zone* zone, size_t required_size, t_all
 
         set_node_size(node, required_size);
         set_previous_node_size(node, last_allocated_node_size);
-        set_node_zone_start_offset(node, zone_occupied_memory_size);
+        set_node_zone_start_offset(node, zone_occupied_memory_size + ZONE_HEADER_SIZE);
         set_next_free_node_zone_start_offset(node, 0);
         set_node_available(node, FALSE);
         set_node_allocation_type(node, type);
 
         zone->last_allocated_node = node;
+        return (void*)(node + NODE_HEADER_SIZE);
     }
     return NULL;
 }

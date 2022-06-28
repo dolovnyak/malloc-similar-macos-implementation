@@ -1,4 +1,5 @@
 #include "malloc_internal.h"
+#include "utilities.h"
 
 BOOL gInit = FALSE;
 t_memory_zones gMemoryZones;
@@ -25,7 +26,7 @@ static inline t_zone* create_new_zone(size_t size) {
     return new_zone;
 }
 
-static inline BOOL init() {
+BOOL init() {
     gInit = TRUE;
     gPageSize = getpagesize();
 
@@ -64,6 +65,11 @@ void* malloc(size_t required_size) {
 
     if (allocation_type == Large) {
         t_zone* large_allocation = create_new_zone(calculate_zone_size(Large, required_size));
+        BYTE* mem_node = (BYTE*)large_allocation + ZONE_HEADER_SIZE;
+        set_large_node_size(mem_node, required_size);
+        set_node_allocation_type(mem_node, Large);
+        large_allocation->last_allocated_node = mem_node;
+
         if (!large_allocation) {
             return NULL;
         }
@@ -74,7 +80,7 @@ void* malloc(size_t required_size) {
             gMemoryZones.last_large_allocation->next = large_allocation;
             gMemoryZones.last_large_allocation = large_allocation;
         }
-        return (void*)((BYTE*)large_allocation + ZONE_HEADER_SIZE);
+        return (void*)(mem_node + NODE_HEADER_SIZE);
     }
 
     t_zone* first_zone;
