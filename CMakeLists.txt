@@ -5,17 +5,23 @@ project(malloc)
 # malloc_lib target
 ################################################################################
 set(MALLOC_LIB "${PROJECT_NAME}_lib")
-add_library(${MALLOC_LIB}
-        standard_malloc_implementation/malloc.c
-        standard_malloc_implementation/zone_management.c
-        standard_malloc_implementation/free.c
-        )
-target_include_directories(${MALLOC_LIB} PUBLIC standard_malloc_implementation/)
 
+set(MALLOC_LIB_SOURCES
+        "standard_malloc_implementation/malloc.c"
+        "standard_malloc_implementation/zone_management.c"
+        "standard_malloc_implementation/free.c"
+        )
+
+add_library(${MALLOC_LIB} ${MALLOC_LIB_SOURCES})
+target_include_directories(${MALLOC_LIB} PUBLIC standard_malloc_implementation/)
 
 ################################################################################
 # tests
 ################################################################################
+set(MALLOC_TESTS_LIBRARY ${MALLOC_LIB}_tests)
+add_library(${MALLOC_TESTS_LIBRARY} ${MALLOC_LIB_SOURCES})
+#target_compile_options(${MALLOC_TESTS_LIBRARY} PRIVATE -DGTEST)
+
 set(MALLOC_TESTS ${PROJECT_NAME}_tests)
 add_subdirectory(googletest)
 
@@ -34,7 +40,7 @@ target_include_directories(${MALLOC_TESTS} PUBLIC
 target_link_libraries(${MALLOC_TESTS}
         gtest
         gtest_main
-        ${MALLOC_LIB}
+        ${MALLOC_TESTS_LIBRARY}
         )
 
 # replaced executable file to root dir
