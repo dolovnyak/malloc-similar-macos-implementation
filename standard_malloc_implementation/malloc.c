@@ -3,13 +3,25 @@
 
 BOOL gInit = FALSE;
 t_memory_zones gMemoryZones;
-size_t gPageSize;
+uint64_t gPageSize;
 
-size_t gTinyZoneSize;
-size_t gTinyAllocationMaxSize;
+uint64_t gTinyZoneSize;
+uint64_t gTinyAllocationMaxSize;
 
-size_t gSmallZoneSize;
-size_t gSmallAllocationMaxSize;
+uint64_t gSmallZoneSize;
+uint64_t gSmallAllocationMaxSize;
+
+static inline uint64_t calculate_zone_size(t_allocation_type type, uint64_t size) {
+    switch (type) {
+        case Tiny:
+            return gTinyZoneSize;
+        case Small:
+            return gSmallZoneSize;
+        case Large:
+            size += ZONE_HEADER_SIZE + NODE_HEADER_SIZE;
+            return size + gPageSize - size % gPageSize;
+    }
+}
 
 static inline t_zone* create_new_zone(size_t size) {
     t_zone* new_zone = (t_zone*)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE,
@@ -21,6 +33,7 @@ static inline t_zone* create_new_zone(size_t size) {
     new_zone->total_size = size - ZONE_HEADER_SIZE;
     new_zone->first_free_node = NULL;
     new_zone->last_free_node = NULL;
+    new_zone->prev = NULL;
     new_zone->next = NULL;
 
     return new_zone;
@@ -65,35 +78,29 @@ void* malloc(size_t required_size) {
 
     if (allocation_type == Large) {
         t_zone* large_allocation = create_new_zone(calculate_zone_size(Large, required_size));
-        BYTE* mem_node = (BYTE*)large_allocation + ZONE_HEADER_SIZE;
-        set_large_node_size(mem_node, required_size);
-        set_node_allocation_type(mem_node, Large);
-        large_allocation->last_allocated_node = mem_node;
-
         if (!large_allocation) {
             return NULL;
         }
-        if (!gMemoryZones.first_large_allocation) {
-            gMemoryZones.first_large_allocation = large_allocation;
-            gMemoryZones.last_large_allocation = large_allocation;
-        } else {
-            gMemoryZones.last_large_allocation->next = large_allocation;
-            gMemoryZones.last_large_allocation = large_allocation;
-        }
+
+        BYTE* mem_node = (BYTE*)large_allocation + ZONE_HEADER_SIZE;
+        construct_large_node_header(mem_node, required_size);
+        large_allocation->last_allocated_node = mem_node;
+
+        add_zone_to_list(&gMemoryZones.first_large_allocation, &gMemoryZones.last_large_allocation, large_allocation);
         return (void*)(mem_node + NODE_HEADER_SIZE);
     }
 
-    t_zone* first_zone;
+    t_zone** first_zone;
     t_zone** last_zone;
     size_t required_size_to_separate;
     switch (allocation_type) {
         case Tiny:
-            first_zone = gMemoryZones.first_tiny_zone;
+            first_zone = &gMemoryZones.first_tiny_zone;
             last_zone = &gMemoryZones.last_tiny_zone;
             required_size_to_separate = gTinyAllocationMaxSize / 2 + NODE_HEADER_SIZE;
             break;
         case Small:
-            first_zone = gMemoryZones.first_small_zone;
+            first_zone = &gMemoryZones.first_small_zone;
             last_zone = &gMemoryZones.last_small_zone;
             required_size_to_separate = gSmallAllocationMaxSize / 2 + NODE_HEADER_SIZE;
             break;
@@ -101,15 +108,14 @@ void* malloc(size_t required_size) {
             exit(-1);
     }
 
-    void* memory = take_memory_from_zone_list(first_zone, required_size, required_size_to_separate, allocation_type);
+    void* memory = take_memory_from_zone_list(*first_zone, required_size, required_size_to_separate, allocation_type);
     if (!memory) {
         t_zone* new_zone = create_new_zone(calculate_zone_size(allocation_type, required_size));
         if (!new_zone) {
             return NULL;
         }
-        (*last_zone)->next = new_zone;
-        *last_zone = new_zone;
         memory = take_memory_from_zone_list(new_zone, required_size, required_size_to_separate, allocation_type);
+        add_zone_to_list(first_zone, last_zone, new_zone);
     }
     return memory;
 }

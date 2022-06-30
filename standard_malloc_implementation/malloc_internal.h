@@ -21,13 +21,13 @@ typedef struct s_zone t_zone;
 
 extern BOOL gInit;
 extern t_memory_zones gMemoryZones;
-extern size_t gPageSize;
+extern uint64_t gPageSize;
 
-extern size_t gTinyZoneSize;
-extern size_t gTinyAllocationMaxSize;
+extern uint64_t gTinyZoneSize;
+extern uint64_t gTinyAllocationMaxSize;
 
-extern size_t gSmallZoneSize;
-extern size_t gSmallAllocationMaxSize;
+extern uint64_t gSmallZoneSize;
+extern uint64_t gSmallAllocationMaxSize;
 
 /// We have 3 memory zones to optimize malloc speed and decrease mmap using.
 ///
@@ -54,10 +54,11 @@ typedef struct s_memory_zones {
 /// [[zone_header][[node_header]node_space]free_zone_space] <- zone with one allocated node
 typedef struct s_zone {
     struct s_zone* next;
+    struct s_zone* prev;
     BYTE* first_free_node;
     BYTE* last_free_node;  /// using for fast inserting
     BYTE* last_allocated_node;
-    size_t total_size;
+    uint64_t total_size;
 } t_zone;
 
 /// for memory optimization memory_node header doesn't have structure and we work with it using bit operations.
@@ -68,11 +69,10 @@ typedef struct s_zone {
  * memory_node {
  * 24_bit size;
  * 24_bit previous_node_size;
- * 16_bit not_used_memory; // needed for easy bit operations with two int64 numbers.
- * ---- end of 64 byte
  * 24_bit offset_from_zone_start;
+ * 24_bit prev_free_node_offset_from_zone_start;
  * 24_bit next_free_node_offset_from_zone_start;
- * 13_bit not_used_memory;
+ * 1_bit  not_used_memory;
  * 1_bit  available;
  * 2_bit  node_type; (tiny/small/large)
  * ---- end of 128 byte
@@ -94,33 +94,32 @@ typedef enum s_allocation_type {
     Large = 2
 } t_allocation_type;
 
+typedef struct s_node_representation {
+    BYTE* raw_node;
+    t_zone* zone;
+    uint64_t size;
+    BYTE* prev_node;
+    BYTE* next_node;
+    BYTE* prev_free_node;
+    BYTE* next_free_node;
+    BOOL available;
+    t_allocation_type type;
+} t_node_representation;
+
+typedef struct s_large_node_representation {
+    BYTE* raw_node;
+    t_zone* zone;
+    uint64_t size;
+    t_allocation_type type;
+} t_large_node_representation;
+
 BOOL init();
 
-void* take_memory_from_zone_list(t_zone* first_zone, size_t required_size, size_t required_size_to_separate, t_allocation_type type);
-void* take_memory_from_zone(t_zone* zone, size_t required_size, size_t required_size_to_separate, t_allocation_type type);
-void* take_memory_from_free_nodes(t_zone* zone, size_t required_size, size_t required_size_to_separate);
-void separate_free_node(BYTE* first_node, size_t first_node_new_size, t_zone* zone);
+void* take_memory_from_zone_list(t_zone* first_zone, uint64_t required_size, uint64_t required_uint64_to_separate, t_allocation_type type);
+void* take_memory_from_zone(t_zone* zone, uint64_t required_size, uint64_t required_uint64_to_separate, t_allocation_type type);
+void* take_memory_from_free_nodes(t_zone* zone, uint64_t required_size, uint64_t required_uint64_to_separate);
+void separate_zone_free_node(BYTE* first_node, uint64_t first_node_new_size, t_zone* zone);
 
-BOOL free_memory_in_zone_list(t_zone* first_zone, t_allocation_type zone_type, void* mem);
+void free_memory_in_zone_list(t_zone** first_zone, t_zone**last_zone, BYTE* node);
+void clear_zone_list(t_zone* current_zone);
 
-static inline t_allocation_type to_type(size_t size) {
-    if (size <= gTinyAllocationMaxSize) {
-        return Tiny;
-    }
-    if (size <= gSmallAllocationMaxSize) {
-        return Small;
-    }
-    return Large;
-}
-
-static inline size_t calculate_zone_size(t_allocation_type type, size_t size) {
-    switch (type) {
-        case Tiny:
-            return gTinyZoneSize;
-        case Small:
-            return gSmallZoneSize;
-        case Large:
-            size += ZONE_HEADER_SIZE + NODE_HEADER_SIZE;
-            return size + gPageSize - size % gPageSize;
-    }
-}

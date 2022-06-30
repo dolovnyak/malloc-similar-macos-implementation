@@ -57,10 +57,14 @@ typedef ::testing::Types<uint64_t, BOOL, t_allocation_type> Types;
 INSTANTIATE_TYPED_TEST_SUITE_P(Node_Header_Operations, Node_Header_Operations_Test, Types);
 
 template<> TestStruct<uint64_t> Node_Header_Operations_Test<uint64_t>::test_struct{
-        {1,             16,                  128,                    16777215, 134523452345, SIZE_MAX - 1},
-        {get_node_size, get_large_node_size, get_previous_node_size, get_node_zone_start_offset, get_next_free_node_zone_start_offset},
-        {set_node_size, set_large_node_size, set_previous_node_size, set_node_zone_start_offset, set_next_free_node_zone_start_offset},
-        {"node_size",   "large_node_size",   "previous_node_size",   "node_zone_start_offset",   "next_free_node_zone_start_offset"}
+        {1,             16,                  128,                  0xFF00FF,                   16777215,                             134523452345,
+                SIZE_MAX - 1},
+        {get_node_size, get_large_node_size, get_prev_node_size,
+         get_node_zone_start_offset, get_prev_free_node_zone_start_offset, get_next_free_node_zone_start_offset},
+        {set_node_size, set_large_node_size, set_prev_node_size,
+         set_node_zone_start_offset, set_prev_free_node_zone_start_offset, set_next_free_node_zone_start_offset},
+        {"node_size",   "large_node_size",   "previous_node_size",
+         "node_zone_start_offset",   "prev_free_node_zone_start_offset", "next_free_node_zone_start_offset"}
 };
 template<> TestStruct<BOOL> Node_Header_Operations_Test<BOOL>::test_struct{
         {TRUE, FALSE, TRUE, TRUE},
@@ -73,3 +77,51 @@ template<> TestStruct<t_allocation_type> Node_Header_Operations_Test<t_allocatio
         {set_node_allocation_type},
         {"node_allocation_type"}
 };
+
+TEST(List_Operations, Zone_List) {
+    t_zone zone1, zone2, zone3;
+    t_zone* zone_list_start = nullptr;
+    t_zone* zone_list_end = nullptr;
+
+    add_zone_to_list(&zone_list_start, &zone_list_end, &zone1);
+    ASSERT_EQ(zone_list_start, &zone1);
+    ASSERT_EQ(zone_list_end, &zone1);
+    ASSERT_EQ(zone1.prev, nullptr);
+    ASSERT_EQ(zone1.next, nullptr);
+
+    add_zone_to_list(&zone_list_start, &zone_list_end, &zone2);
+    ASSERT_EQ(zone_list_start, &zone1);
+    ASSERT_EQ(zone_list_end, &zone2);
+    ASSERT_EQ(zone1.prev, nullptr);
+    ASSERT_EQ(zone1.next, &zone2);
+    ASSERT_EQ(zone2.prev, &zone1);
+    ASSERT_EQ(zone2.next, nullptr);
+
+    add_zone_to_list(&zone_list_start, &zone_list_end, &zone3);
+    ASSERT_EQ(zone_list_start, &zone1);
+    ASSERT_EQ(zone_list_end, &zone3);
+    ASSERT_EQ(zone1.prev, nullptr);
+    ASSERT_EQ(zone1.next, &zone2);
+    ASSERT_EQ(zone2.prev, &zone1);
+    ASSERT_EQ(zone2.next, &zone3);
+    ASSERT_EQ(zone3.prev, &zone2);
+    ASSERT_EQ(zone3.next, nullptr);
+
+    delete_zone_from_list(&zone_list_start, &zone_list_end, &zone2);
+    ASSERT_EQ(zone_list_start, &zone1);
+    ASSERT_EQ(zone_list_end, &zone3);
+    ASSERT_EQ(zone1.prev, nullptr);
+    ASSERT_EQ(zone1.next, &zone3);
+    ASSERT_EQ(zone3.prev, &zone1);
+    ASSERT_EQ(zone3.next, nullptr);
+
+    delete_zone_from_list(&zone_list_start, &zone_list_end, &zone1);
+    ASSERT_EQ(zone_list_start, &zone3);
+    ASSERT_EQ(zone_list_end, &zone3);
+    ASSERT_EQ(zone3.prev, nullptr);
+    ASSERT_EQ(zone3.next, nullptr);
+
+    delete_zone_from_list(&zone_list_start, &zone_list_end, &zone3);
+    ASSERT_EQ(zone_list_start, nullptr);
+    ASSERT_EQ(zone_list_end, nullptr);
+}
