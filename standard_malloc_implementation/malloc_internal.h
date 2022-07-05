@@ -23,16 +23,15 @@ typedef struct s_zone t_zone;
 
 extern BOOL gInit;
 extern t_memory_zones gMemoryZones;
-extern uint64_t gPageSize;
+extern int gPageSize;
 
-extern uint64_t gTinyZoneSize;
-extern uint64_t gTinyAllocationMaxSize;
+#define TINY_ZONE_SIZE 0x100000 /// 1 mb
+#define TINE_ALLOCATION_MAX_SIZE 128
+#define TINY_SEPARATE_SIZE TINE_ALLOCATION_MAX_SIZE / 2 + NODE_HEADER_SIZE
 
-extern uint64_t gSmallZoneSize;
-extern uint64_t gSmallAllocationMaxSize;
-
-#define TINY_SEPARATE_SIZE gTinyAllocationMaxSize / 2 + NODE_HEADER_SIZE
-#define SMALL_SEPARATE_SIZE gSmallAllocationMaxSize / 2 + NODE_HEADER_SIZE
+#define SMALL_ZONE_SIZE 0x800000 /// 8 mb
+#define SMALL_ALLOCATION_MAX_SIZE 512
+#define SMALL_SEPARATE_SIZE SMALL_ALLOCATION_MAX_SIZE / 2 + NODE_HEADER_SIZE
 
 /// We have 3 memory zones to optimize malloc speed and decrease mmap using.
 ///
@@ -131,3 +130,7 @@ t_zone* create_new_zone(size_t size);
 void free_memory_in_zone_list(t_zone** first_zone, t_zone**last_zone, BYTE* node);
 void clear_zone_list(t_zone* current_zone);
 
+/// for gtest
+void __free(void* ptr);
+void* __malloc(size_t required_size);
+void* __realloc(void* ptr, size_t new_size);

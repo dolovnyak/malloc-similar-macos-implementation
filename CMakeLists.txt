@@ -26,8 +26,6 @@ target_compile_options(${MALLOC_TESTS_LIBRARY} PRIVATE -DGTEST)
 set(MALLOC_TESTS ${PROJECT_NAME}_tests)
 add_subdirectory(googletest)
 
-add_executable(AAA standard_malloc_implementation/main.c)
-
 add_executable(${MALLOC_TESTS}
         standard_malloc_implementation/tests/malloc_tests.cpp
         standard_malloc_implementation/tests/free_tests.cpp

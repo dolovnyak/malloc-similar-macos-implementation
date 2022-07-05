@@ -3,26 +3,16 @@
 
 BOOL gInit = FALSE;
 t_memory_zones gMemoryZones;
-uint64_t gPageSize;
-
-uint64_t gTinyZoneSize;
-uint64_t gTinyAllocationMaxSize;
-
-uint64_t gSmallZoneSize;
-uint64_t gSmallAllocationMaxSize;
+int gPageSize;
 
 BOOL init() {
     gInit = TRUE;
     gPageSize = getpagesize();
 
-    gTinyZoneSize = gPageSize * 4;
-    gTinyAllocationMaxSize = gTinyZoneSize / 64;
     t_zone* tiny_default_zone = create_new_zone(calculate_zone_size(Tiny, 0));
     gMemoryZones.first_tiny_zone = tiny_default_zone;
     gMemoryZones.last_tiny_zone = tiny_default_zone;
 
-    gSmallZoneSize = gPageSize * 16;
-    gSmallAllocationMaxSize = gSmallZoneSize / 64;
     t_zone* small_default_zone = create_new_zone(calculate_zone_size(Small, 0));
     gMemoryZones.first_small_zone = small_default_zone;
     gMemoryZones.last_small_zone = small_default_zone;
@@ -33,7 +23,11 @@ BOOL init() {
     return TRUE;
 }
 
+#ifdef GTEST
+void* __malloc(size_t required_size) {
+#else
 void* malloc(size_t required_size) {
+#endif
     if (required_size == 0) {
         return NULL;
     }

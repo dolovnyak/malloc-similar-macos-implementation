@@ -17,7 +17,6 @@ void free_all() {
 #ifdef GTEST
 void __free(void* ptr) {
 #else
-
 void free(void* ptr) {
 #endif
     if (ptr == NULL) {

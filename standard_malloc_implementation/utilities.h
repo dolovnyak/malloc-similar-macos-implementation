@@ -167,7 +167,7 @@ static inline t_node_representation get_node_representation(BYTE* node) {
     node_representation.zone = (t_zone*)(node - get_node_zone_start_offset(node));
     node_representation.size = get_node_size(node, node_representation.type);
     node_representation.prev_node =
-            get_prev_node_size(node) == 0 ? node - get_prev_node_size(node) - NODE_HEADER_SIZE : NULL;
+            get_prev_node_size(node) == 0 ? NULL : node - get_prev_node_size(node) - NODE_HEADER_SIZE;
     node_representation.next_node = node_representation.zone->last_allocated_node == node ? NULL : node + NODE_HEADER_SIZE + node_representation.size;
     node_representation.prev_free_node = get_prev_free_node(node_representation.zone, node);
     node_representation.next_free_node = get_next_free_node(node_representation.zone, node);
@@ -272,10 +272,10 @@ static inline void delete_zone_from_list(t_zone** first_zone, t_zone** last_zone
 }
 
 static inline t_allocation_type to_allocation_type(uint64_t size) {
-    if (size <= gTinyAllocationMaxSize) {
+    if (size <= TINE_ALLOCATION_MAX_SIZE) {
         return Tiny;
     }
-    if (size <= gSmallAllocationMaxSize) {
+    if (size <= SMALL_ALLOCATION_MAX_SIZE) {
         return Small;
     }
     return Large;
@@ -284,9 +284,9 @@ static inline t_allocation_type to_allocation_type(uint64_t size) {
 static inline uint64_t calculate_zone_size(t_allocation_type type, uint64_t size) {
     switch (type) {
         case Tiny:
-            return gTinyZoneSize;
+            return TINY_ZONE_SIZE;
         case Small:
-            return gSmallZoneSize;
+            return SMALL_ZONE_SIZE;
         case Large:
             size += ZONE_HEADER_SIZE + NODE_HEADER_SIZE;
             return size + gPageSize - size % gPageSize;

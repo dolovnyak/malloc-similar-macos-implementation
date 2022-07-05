@@ -466,25 +466,23 @@ TEST(Take_Memory_From_Zone, Main_Check) {
 }
 
 TEST(Malloc_Internal_State, Check_Init_Correct) {
-    char* mem = (char*)malloc(5);
+    char* mem = (char*)__malloc(5);
 
     ASSERT_EQ(gInit, true);
     ASSERT_EQ(gMemoryZones.first_large_allocation, nullptr);
     ASSERT_EQ(gMemoryZones.last_large_allocation, nullptr);
 
     BYTE* last_allocated_node = (BYTE*)mem - NODE_HEADER_SIZE;
-    ASSERT_EQ(gMemoryZones.first_tiny_zone->total_size, gPageSize * 4 - sizeof(t_zone));
+    ASSERT_EQ(gMemoryZones.first_tiny_zone->total_size, TINY_ZONE_SIZE - ZONE_HEADER_SIZE);
     ASSERT_EQ(last_allocated_node, gMemoryZones.first_tiny_zone->last_allocated_node);
     ASSERT_EQ(get_node_size(last_allocated_node, Tiny), 16);
-    ASSERT_EQ(gMemoryZones.first_tiny_zone->total_size - get_node_size(last_allocated_node, Tiny) - NODE_HEADER_SIZE,
-              gPageSize * 4 - ZONE_HEADER_SIZE - NODE_HEADER_SIZE - 16);
     ASSERT_EQ(gMemoryZones.first_tiny_zone->first_free_node, nullptr);
     ASSERT_EQ(gMemoryZones.first_tiny_zone->last_free_node, nullptr);
     ASSERT_EQ(gMemoryZones.first_tiny_zone->next, nullptr);
 
     ASSERT_EQ(gMemoryZones.first_tiny_zone, gMemoryZones.last_tiny_zone);
 
-    ASSERT_EQ(gMemoryZones.first_small_zone->total_size, gPageSize * 16 - sizeof(t_zone));
+    ASSERT_EQ(gMemoryZones.first_small_zone->total_size, SMALL_ZONE_SIZE - ZONE_HEADER_SIZE);
     ASSERT_EQ(gMemoryZones.first_small_zone->last_allocated_node, nullptr);
     ASSERT_EQ(gMemoryZones.first_small_zone->first_free_node, nullptr);
     ASSERT_EQ(gMemoryZones.first_small_zone->last_free_node, nullptr);
@@ -500,8 +498,8 @@ TEST(Malloc_Internal_State, Correct_Zone_Select) {
     {
         void* mem = nullptr;
         /// tiny zone choosing and adding correct
-        for (size_t i = 0; i < (gTinyZoneSize - ZONE_HEADER_SIZE) / (gTinyAllocationMaxSize + NODE_HEADER_SIZE); ++i) {
-            mem = malloc(gTinyAllocationMaxSize);
+        for (size_t i = 0; i < (TINY_ZONE_SIZE - ZONE_HEADER_SIZE) / (TINE_ALLOCATION_MAX_SIZE + NODE_HEADER_SIZE); ++i) {
+            mem = __malloc(TINE_ALLOCATION_MAX_SIZE);
         }
         BYTE* last_allocated_node = (BYTE*)mem - NODE_HEADER_SIZE;
         t_zone* first_tiny_zone = gMemoryZones.first_tiny_zone;
@@ -510,12 +508,12 @@ TEST(Malloc_Internal_State, Correct_Zone_Select) {
         uint64_t first_zone_occupied_size = (last_allocated_node + NODE_HEADER_SIZE + get_node_size(last_allocated_node, Tiny)) - (BYTE*)first_tiny_zone - ZONE_HEADER_SIZE;
         uint64_t first_zone_available_size = first_tiny_zone->total_size - first_zone_occupied_size;
         ASSERT_EQ(first_zone_available_size,
-                  (gTinyZoneSize - sizeof(t_zone)) % (gTinyAllocationMaxSize + NODE_HEADER_SIZE));
+                  (TINY_ZONE_SIZE - sizeof(t_zone)) % (TINE_ALLOCATION_MAX_SIZE + NODE_HEADER_SIZE));
         ASSERT_EQ(first_tiny_zone->next, nullptr);
         ASSERT_EQ(gMemoryZones.first_small_zone->last_allocated_node, nullptr);
         ASSERT_EQ(gMemoryZones.first_large_allocation, nullptr);
 
-        mem = malloc(gTinyAllocationMaxSize);
+        mem = __malloc(TINE_ALLOCATION_MAX_SIZE);
         t_zone* second_tiny_zone = gMemoryZones.last_tiny_zone;
 
         last_allocated_node = (BYTE*)mem - NODE_HEADER_SIZE;
@@ -527,7 +525,7 @@ TEST(Malloc_Internal_State, Correct_Zone_Select) {
         ASSERT_EQ(second_tiny_zone->last_allocated_node, last_allocated_node);
         ASSERT_EQ(first_tiny_zone->next, second_tiny_zone);
         ASSERT_EQ(second_zone_available_size,
-                  gTinyZoneSize - ZONE_HEADER_SIZE - NODE_HEADER_SIZE - gTinyAllocationMaxSize);
+                  TINY_ZONE_SIZE - ZONE_HEADER_SIZE - NODE_HEADER_SIZE - TINE_ALLOCATION_MAX_SIZE);
         ASSERT_EQ(gMemoryZones.first_small_zone->last_allocated_node, nullptr);
         ASSERT_EQ(gMemoryZones.first_large_allocation, nullptr);
     }
@@ -535,8 +533,8 @@ TEST(Malloc_Internal_State, Correct_Zone_Select) {
     {
         /// small zone choosing and adding correct
         void *mem = nullptr;
-        for (size_t i = 0; i < (gSmallZoneSize - sizeof(t_zone)) / (gSmallAllocationMaxSize + NODE_HEADER_SIZE); ++i) {
-            mem = malloc(gSmallAllocationMaxSize);
+        for (size_t i = 0; i < (SMALL_ZONE_SIZE - sizeof(t_zone)) / (SMALL_ALLOCATION_MAX_SIZE + NODE_HEADER_SIZE); ++i) {
+            mem = __malloc(SMALL_ALLOCATION_MAX_SIZE);
         }
         BYTE* last_allocated_node = (BYTE*)mem - NODE_HEADER_SIZE;
         t_zone* first_small_zone = gMemoryZones.first_small_zone;
@@ -545,11 +543,11 @@ TEST(Malloc_Internal_State, Correct_Zone_Select) {
         uint64_t first_zone_occupied_size = (last_allocated_node + NODE_HEADER_SIZE + get_node_size(last_allocated_node, Small)) - (BYTE*)first_small_zone - ZONE_HEADER_SIZE;
         uint64_t first_zone_available_size = first_small_zone->total_size - first_zone_occupied_size;
         ASSERT_EQ(first_zone_available_size,
-                  (gSmallZoneSize - ZONE_HEADER_SIZE) % (gSmallAllocationMaxSize + NODE_HEADER_SIZE));
+                  (SMALL_ZONE_SIZE - ZONE_HEADER_SIZE) % (SMALL_ALLOCATION_MAX_SIZE + NODE_HEADER_SIZE));
         ASSERT_EQ(first_small_zone->next, nullptr);
         ASSERT_EQ(gMemoryZones.first_large_allocation, nullptr);
 
-        mem = malloc(gSmallAllocationMaxSize);
+        mem = __malloc(SMALL_ALLOCATION_MAX_SIZE);
         last_allocated_node = (BYTE*)mem - NODE_HEADER_SIZE;
         t_zone* second_small_zone = gMemoryZones.last_small_zone;
         uint64_t second_zone_occupied_size = (last_allocated_node + NODE_HEADER_SIZE + get_node_size(last_allocated_node, Small)) - (BYTE*)second_small_zone - ZONE_HEADER_SIZE;
@@ -558,14 +556,14 @@ TEST(Malloc_Internal_State, Correct_Zone_Select) {
         ASSERT_FALSE(first_small_zone == second_small_zone);
         ASSERT_EQ(first_small_zone->next, second_small_zone);
         ASSERT_EQ(second_zone_available_size,
-                  gSmallZoneSize - ZONE_HEADER_SIZE - gSmallAllocationMaxSize - NODE_HEADER_SIZE);
+                  SMALL_ZONE_SIZE - ZONE_HEADER_SIZE - SMALL_ALLOCATION_MAX_SIZE - NODE_HEADER_SIZE);
         ASSERT_EQ(gMemoryZones.first_large_allocation, nullptr);
     }
 
     {
         /// large allocation choosing and adding correct
         size_t mem_size = 2048 + 15 & ~15;
-        void* mem = malloc(mem_size);
+        void* mem = __malloc(mem_size);
 
         t_zone* first_large_allocation = gMemoryZones.first_large_allocation;
         BYTE* allocated_node = (BYTE*)mem - NODE_HEADER_SIZE;
@@ -575,8 +573,8 @@ TEST(Malloc_Internal_State, Correct_Zone_Select) {
         ASSERT_EQ(get_node_size(allocated_node, Large), 2048);
         ASSERT_EQ(get_node_allocation_type(allocated_node), Large);
 
-        mem_size = gSmallAllocationMaxSize + gPageSize;
-        mem = malloc(mem_size);
+        mem_size = SMALL_ALLOCATION_MAX_SIZE + gPageSize;
+        mem = __malloc(mem_size);
 
         t_zone* second_large_allocation = gMemoryZones.last_large_allocation;
         allocated_node = (BYTE*)mem - NODE_HEADER_SIZE;
@@ -585,7 +583,7 @@ TEST(Malloc_Internal_State, Correct_Zone_Select) {
         ASSERT_EQ(first_large_allocation->next, second_large_allocation);
         ASSERT_EQ(allocated_node, second_large_allocation->last_allocated_node);
         ASSERT_EQ(second_large_allocation->total_size, mem_size + gPageSize - mem_size % gPageSize - ZONE_HEADER_SIZE);
-        ASSERT_EQ(get_node_size(allocated_node, Large), 5120);
+        ASSERT_EQ(get_node_size(allocated_node, Large), mem_size);
         ASSERT_EQ(get_node_allocation_type(allocated_node), Large);
     }
 }

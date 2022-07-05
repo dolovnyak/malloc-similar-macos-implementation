@@ -1,7 +1,11 @@
 #include "malloc_internal.h"
 #include "utilities.h"
 
+#ifdef GTEST
+void* __realloc(void* ptr, size_t new_size) {
+#else
 void* realloc(void* ptr, size_t new_size) {
+#endif
     if (ptr == NULL) {
         return malloc(new_size);
     }
