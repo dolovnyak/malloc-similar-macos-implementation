@@ -19,6 +19,8 @@ typedef struct s_zone t_zone;
 #define NODE_HEADER_SIZE 16
 #define ZONE_HEADER_SIZE sizeof(t_zone)
 
+#define MINIMUM_SIZE_TO_ALLOCATE 16
+
 extern BOOL gInit;
 extern t_memory_zones gMemoryZones;
 extern uint64_t gPageSize;
@@ -28,6 +30,9 @@ extern uint64_t gTinyAllocationMaxSize;
 
 extern uint64_t gSmallZoneSize;
 extern uint64_t gSmallAllocationMaxSize;
+
+#define TINY_SEPARATE_SIZE gTinyAllocationMaxSize / 2 + NODE_HEADER_SIZE
+#define SMALL_SEPARATE_SIZE gSmallAllocationMaxSize / 2 + NODE_HEADER_SIZE
 
 /// We have 3 memory zones to optimize malloc speed and decrease mmap using.
 ///
@@ -115,10 +120,13 @@ typedef struct s_large_node_representation {
 
 BOOL init();
 
-void* take_memory_from_zone_list(t_zone* first_zone, uint64_t required_size, uint64_t required_uint64_to_separate, t_allocation_type type);
-void* take_memory_from_zone(t_zone* zone, uint64_t required_size, uint64_t required_uint64_to_separate, t_allocation_type type);
-void* take_memory_from_free_nodes(t_zone* zone, uint64_t required_size, uint64_t required_uint64_to_separate);
-void separate_zone_free_node(BYTE* first_node, uint64_t first_node_new_size, t_zone* zone);
+void* take_memory_from_zone_list(t_zone* first_zone, uint64_t required_size, uint64_t separate_size, t_allocation_type type);
+void* take_memory_from_zone(t_zone* zone, uint64_t required_size, uint64_t separate_size, t_allocation_type type);
+void* take_memory_from_free_nodes(t_zone* zone, uint64_t required_size, uint64_t separate_size, t_allocation_type type);
+void separate_node_on_new_free_node(BYTE* first_node, uint64_t first_node_new_size, t_zone* zone, t_allocation_type type);
+BOOL reallocate_memory_in_zone(BYTE* node, uint64_t new_size, uint64_t separate_size);
+
+t_zone* create_new_zone(size_t size);
 
 void free_memory_in_zone_list(t_zone** first_zone, t_zone**last_zone, BYTE* node);
 void clear_zone_list(t_zone* current_zone);

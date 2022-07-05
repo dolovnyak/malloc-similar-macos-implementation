@@ -35,20 +35,19 @@ static inline void set(uint64_t* variable_to_set, uint64_t mask, uint8_t shift, 
     *variable_to_set |= (value << shift); // set value in value region
 }
 
-static inline uint64_t get_node_size(const BYTE* node_header) {
-    return get(*(uint64_t*)node_header, MASK_NODE_SIZE, SHIFT_NODE_SIZE);
+static inline uint64_t get_node_size(const BYTE* node_header, t_allocation_type type) {
+    return (type == Large) ?
+           (*(uint64_t*)node_header) :
+           (get(*(uint64_t*)node_header, MASK_NODE_SIZE, SHIFT_NODE_SIZE));
 }
 
-static inline void set_node_size(BYTE* node_header, uint64_t size) {
-    set((uint64_t*)node_header, MASK_NODE_SIZE, SHIFT_NODE_SIZE, size);
-}
-
-static inline uint64_t get_large_node_size(const BYTE* node_header) {
-    return *(uint64_t*)node_header;
-}
-
-static inline void set_large_node_size(BYTE* node_header, uint64_t size) {
-    *(uint64_t*)node_header = size;
+static inline void set_node_size(BYTE* node_header, uint64_t size, t_allocation_type type) {
+    if (type == Large) {
+        *(uint64_t*)node_header = size;
+    }
+    else {
+        set((uint64_t*)node_header, MASK_NODE_SIZE, SHIFT_NODE_SIZE, size);
+    }
 }
 
 static inline uint64_t get_prev_node_size(const BYTE* node_header) {
@@ -148,7 +147,7 @@ static inline void construct_node_header(t_zone* zone,
                                          uint64_t prev_node_size,
                                          BOOL available,
                                          t_allocation_type type) {
-    set_node_size(node, size);
+    set_node_size(node, size, type);
     set_prev_node_size(node, prev_node_size);
     set_node_zone_start_offset(node, node - (BYTE*)zone);
     set_node_available(node, available);
@@ -157,22 +156,22 @@ static inline void construct_node_header(t_zone* zone,
 
 static inline void construct_large_node_header(BYTE* node,
                                                uint64_t size) {
-    set_large_node_size(node, size);
+    set_node_size(node, size, Large);
     set_node_allocation_type(node, Large);
 }
 
 static inline t_node_representation get_node_representation(BYTE* node) {
     t_node_representation node_representation;
+    node_representation.type = get_node_allocation_type(node);
     node_representation.raw_node = node;
     node_representation.zone = (t_zone*)(node - get_node_zone_start_offset(node));
-    node_representation.size = get_node_size(node);
+    node_representation.size = get_node_size(node, node_representation.type);
     node_representation.prev_node =
             get_prev_node_size(node) == 0 ? node - get_prev_node_size(node) - NODE_HEADER_SIZE : NULL;
     node_representation.next_node = node_representation.zone->last_allocated_node == node ? NULL : node + NODE_HEADER_SIZE + node_representation.size;
     node_representation.prev_free_node = get_prev_free_node(node_representation.zone, node);
     node_representation.next_free_node = get_next_free_node(node_representation.zone, node);
     node_representation.available = get_node_available(node);
-    node_representation.type = get_node_allocation_type(node);
     return node_representation;
 }
 
@@ -180,8 +179,8 @@ static inline t_large_node_representation get_large_node_representation(BYTE* no
     t_large_node_representation node_representation;
     node_representation.raw_node = node;
     node_representation.zone = (t_zone*)(node - ZONE_HEADER_SIZE);
-    node_representation.size = get_large_node_size(node);
-    node_representation.type = get_node_allocation_type(node);
+    node_representation.size = get_node_size(node, Large);
+    node_representation.type = Large;
     return node_representation;
 }
 
@@ -272,7 +271,7 @@ static inline void delete_zone_from_list(t_zone** first_zone, t_zone** last_zone
     zone_to_delete->prev = NULL;
 }
 
-static inline t_allocation_type to_type(uint64_t size) {
+static inline t_allocation_type to_allocation_type(uint64_t size) {
     if (size <= gTinyAllocationMaxSize) {
         return Tiny;
     }
@@ -280,4 +279,16 @@ static inline t_allocation_type to_type(uint64_t size) {
         return Small;
     }
     return Large;
+}
+
+static inline uint64_t calculate_zone_size(t_allocation_type type, uint64_t size) {
+    switch (type) {
+        case Tiny:
+            return gTinyZoneSize;
+        case Small:
+            return gSmallZoneSize;
+        case Large:
+            size += ZONE_HEADER_SIZE + NODE_HEADER_SIZE;
+            return size + gPageSize - size % gPageSize;
+    }
 }

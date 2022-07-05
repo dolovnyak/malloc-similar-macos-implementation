@@ -10,6 +10,7 @@ set(MALLOC_LIB_SOURCES
         "standard_malloc_implementation/malloc.c"
         "standard_malloc_implementation/zone_management.c"
         "standard_malloc_implementation/free.c"
+        "standard_malloc_implementation/realloc.c"
         )
 
 add_library(${MALLOC_LIB} ${MALLOC_LIB_SOURCES})
@@ -20,7 +21,7 @@ target_include_directories(${MALLOC_LIB} PUBLIC standard_malloc_implementation/)
 ################################################################################
 set(MALLOC_TESTS_LIBRARY ${MALLOC_LIB}_tests)
 add_library(${MALLOC_TESTS_LIBRARY} ${MALLOC_LIB_SOURCES})
-#target_compile_options(${MALLOC_TESTS_LIBRARY} PRIVATE -DGTEST)
+target_compile_options(${MALLOC_TESTS_LIBRARY} PRIVATE -DGTEST)
 
 set(MALLOC_TESTS ${PROJECT_NAME}_tests)
 add_subdirectory(googletest)
