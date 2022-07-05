@@ -17,6 +17,7 @@ void free_all() {
 #ifdef GTEST
 void __free(void* ptr) {
 #else
+
 void free(void* ptr) {
 #endif
     if (ptr == NULL) {
@@ -29,24 +30,26 @@ void free(void* ptr) {
         /// deallocate full large_allocation
         t_zone* large_allocation = (t_zone*)(node - ZONE_HEADER_SIZE);
 
-        delete_zone_from_list(&gMemoryZones.first_large_allocation, &gMemoryZones.last_large_allocation, large_allocation);
+        delete_zone_from_list(&gMemoryZones.first_large_allocation, &gMemoryZones.last_large_allocation,
+                              large_allocation);
         munmap((void*)large_allocation, large_allocation->total_size + ZONE_HEADER_SIZE);
+        return;
     }
-    else {
-        t_zone** first_zone;
-        t_zone** last_zone;
-        switch (allocation_type) {
-            case Tiny:
-                first_zone = &gMemoryZones.first_tiny_zone;
-                last_zone = &gMemoryZones.last_tiny_zone;
-                break;
-            case Small:
-                first_zone = &gMemoryZones.first_small_zone;
-                last_zone = &gMemoryZones.last_small_zone;
-                break;
-            case Large:
-                exit(-1);
-        }
-        free_memory_in_zone_list(first_zone, last_zone, node);
+
+    t_zone** first_zone;
+    t_zone** last_zone;
+    switch (allocation_type) {
+        case Tiny:
+            first_zone = &gMemoryZones.first_tiny_zone;
+            last_zone = &gMemoryZones.last_tiny_zone;
+            break;
+        case Small:
+            first_zone = &gMemoryZones.first_small_zone;
+            last_zone = &gMemoryZones.last_small_zone;
+            break;
+        case Large:
+            exit(-1);
     }
+
+    free_memory_in_zone_list(first_zone, last_zone, node);
 }
