@@ -2,7 +2,7 @@
 
 #include "utilities.h"
 
-void free_all() {
+void __free_all() {
     if (!gInit) { return; }
     gInit = FALSE;
 
@@ -13,12 +13,7 @@ void free_all() {
     bzero(&gMemoryZones, sizeof(t_memory_zones));
 }
 
-/// needed because gtest using this free function instead external, but using function which using external malloc.
-#ifdef GTEST
 void __free(void* ptr) {
-#else
-void free(void* ptr) {
-#endif
     if (ptr == NULL) {
         return;
     }

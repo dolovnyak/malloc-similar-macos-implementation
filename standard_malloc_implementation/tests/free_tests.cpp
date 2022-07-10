@@ -3,13 +3,14 @@
 
 extern "C" {
 #include "malloc_internal.h"
+#include "utilities.h"
 }
 
 TEST(Free_All, Check_Correct) {
     void* mem = __malloc(10);
     ASSERT_EQ(gInit, true);
 
-    free_all();
+    __free_all();
 
     ASSERT_EQ(gInit, false);
     ASSERT_EQ(gMemoryZones.first_tiny_zone, nullptr);
@@ -18,7 +19,7 @@ TEST(Free_All, Check_Correct) {
 }
 
 TEST(Free, Large) {
-    free_all();
+    __free_all();
 
     void* mem1 = __malloc(SMALL_ALLOCATION_MAX_SIZE + 1);
     ASSERT_EQ((BYTE*)gMemoryZones.first_large_allocation, (BYTE*)mem1 - NODE_HEADER_SIZE - ZONE_HEADER_SIZE);
@@ -37,18 +38,60 @@ TEST(Free, Large) {
 }
 
 TEST(Free, Tiny_Small) {
-    free_all();
+    __free_all();
     std::array<void*, 60000> ptr_arr{};
 
-    for (uint64_t i = 0; i < 60000; ++i) {
-        void* mem = __malloc(16);
-        ptr_arr[i] = mem;
+    {
+        /// free both zones from the end
+        for (uint64_t i = 0; i < 60000; ++i) {
+            ptr_arr[i] = __malloc(16);
+        }
+        ASSERT_FALSE(gMemoryZones.first_tiny_zone == gMemoryZones.last_tiny_zone);
+        ASSERT_EQ(gMemoryZones.first_tiny_zone->next, gMemoryZones.last_tiny_zone);
+        for (uint64_t i = 60000; i > 0; --i) {
+            __free(ptr_arr[i - 1]);
+        }
+        ASSERT_EQ(gMemoryZones.first_tiny_zone, gMemoryZones.last_tiny_zone);
+        ASSERT_EQ((BYTE*)gMemoryZones.first_tiny_zone->last_allocated_node, nullptr);
     }
-    ASSERT_FALSE(gMemoryZones.first_tiny_zone == gMemoryZones.last_tiny_zone);
-    ASSERT_EQ(gMemoryZones.first_tiny_zone->next, gMemoryZones.last_tiny_zone);
-    for (uint64_t i = 60000; i > 0; --i) {
-        __free(ptr_arr[i - 1]);
+
+    {
+        /// free both zones from the begin
+        for (uint64_t i = 0; i < 60000; ++i) {
+            ptr_arr[i] = __malloc(16);
+        }
+        ASSERT_FALSE(gMemoryZones.first_tiny_zone == gMemoryZones.last_tiny_zone);
+        ASSERT_EQ(gMemoryZones.first_tiny_zone->next, gMemoryZones.last_tiny_zone);
+        for (uint64_t i = 0; i < 60000; ++i) {
+            __free(ptr_arr[i]);
+        }
+        ASSERT_EQ(gMemoryZones.first_tiny_zone, gMemoryZones.last_tiny_zone);
+        ASSERT_EQ((BYTE*)gMemoryZones.first_tiny_zone->last_allocated_node, nullptr);
     }
-    ASSERT_EQ(gMemoryZones.first_tiny_zone, gMemoryZones.last_tiny_zone);
-    ASSERT_EQ((BYTE*)gMemoryZones.first_tiny_zone->last_allocated_node, nullptr);
+
+    {
+        /// free through one
+        t_zone* zone = gMemoryZones.first_tiny_zone;
+
+        for (uint64_t i = 0; i < 1000; ++i) {
+            ptr_arr[i] = __malloc(16);
+        }
+        for (uint64_t i = 0; i < 1000; i+=2) {
+                __free(ptr_arr[i]);
+        }
+        uint64_t idx = 0;
+        for (BYTE* node = (BYTE*)zone + ZONE_HEADER_SIZE; node != zone->last_allocated_node; node += NODE_HEADER_SIZE + 16) {
+            if (idx % 2 == 0) {
+                ASSERT_EQ(get_node_available(node), TRUE);
+            }
+            else {
+                ASSERT_EQ(get_node_available(node), FALSE);
+            }
+            ++idx;
+        }
+        for (uint64_t i = 1; i < 1000; i+=2) {
+            __free(ptr_arr[i]);
+        }
+        ASSERT_EQ((BYTE*)gMemoryZones.first_tiny_zone->last_allocated_node, nullptr);
+    }
 }

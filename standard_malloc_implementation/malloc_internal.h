@@ -1,11 +1,10 @@
 #pragma once
 
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <mach/vm_statistics.h>
-
-#include "malloc.h"
 
 typedef struct s_memory_zones t_memory_zones;
 typedef struct s_zone t_zone;
@@ -134,3 +133,4 @@ void clear_zone_list(t_zone* current_zone);
 void __free(void* ptr);
 void* __malloc(size_t required_size);
 void* __realloc(void* ptr, size_t new_size);
+void __free_all();

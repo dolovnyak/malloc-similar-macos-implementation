@@ -13,8 +13,11 @@ set(MALLOC_LIB_SOURCES
         "standard_malloc_implementation/realloc.c"
         )
 
-add_library(${MALLOC_LIB} ${MALLOC_LIB_SOURCES})
-target_include_directories(${MALLOC_LIB} PUBLIC standard_malloc_implementation/)
+add_library(${MALLOC_LIB}
+        ${MALLOC_LIB_SOURCES}
+        malloc_wrapper.c
+        )
+target_include_directories(${MALLOC_LIB} PUBLIC standard_malloc_implementation/ ./)
 
 ################################################################################
 # tests
@@ -29,7 +32,8 @@ add_subdirectory(googletest)
 add_executable(${MALLOC_TESTS}
         standard_malloc_implementation/tests/malloc_tests.cpp
         standard_malloc_implementation/tests/free_tests.cpp
-        standard_malloc_implementation/tests/utilities_test.cpp
+        standard_malloc_implementation/tests/utilities_tests.cpp
+        standard_malloc_implementation/tests/realloc_tests.cpp
         )
 
 target_include_directories(${MALLOC_TESTS} PUBLIC

@@ -1,17 +1,13 @@
 #include "malloc_internal.h"
 #include "utilities.h"
 
-#ifdef GTEST
 void* __realloc(void* ptr, size_t new_size) {
-#else
-void* realloc(void* ptr, size_t new_size) {
-#endif
     if (ptr == NULL) {
-        return malloc(new_size);
+        return __malloc(new_size);
     }
     if (new_size == 0) {
-        free(ptr);
-        return malloc(MINIMUM_SIZE_TO_ALLOCATE);
+        __free(ptr);
+        return __malloc(MINIMUM_SIZE_TO_ALLOCATE);
     }
 
     new_size = new_size + 15 & ~15;
@@ -36,11 +32,11 @@ void* realloc(void* ptr, size_t new_size) {
         }
     }
 
-    void* mem = malloc(new_size);
+    void* mem = __malloc(new_size);
     if (!mem) {
         return NULL;
     }
     memcpy(mem, (void*)(node + NODE_HEADER_SIZE), get_node_size(node, allocation_type_from_node));
-    free((void*)(node + NODE_HEADER_SIZE));
+    __free((void*)(node + NODE_HEADER_SIZE));
     return mem;
 }

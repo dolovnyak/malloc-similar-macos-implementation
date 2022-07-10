@@ -23,11 +23,7 @@ BOOL init() {
     return TRUE;
 }
 
-#ifdef GTEST
 void* __malloc(size_t required_size) {
-#else
-void* malloc(size_t required_size) {
-#endif
     if (required_size == 0) {
         return NULL;
     }

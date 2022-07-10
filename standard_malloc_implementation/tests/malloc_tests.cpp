@@ -493,7 +493,7 @@ TEST(Malloc_Internal_State, Check_Init_Correct) {
 }
 
 TEST(Malloc_Internal_State, Correct_Zone_Select) {
-    free_all();
+    __free_all();
     init(); // needed for global vars which use getpagesize();
     {
         void* mem = nullptr;
