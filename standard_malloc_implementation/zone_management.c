@@ -165,9 +165,7 @@ BOOL reallocate_memory_in_zone(BYTE* node, uint64_t new_size, uint64_t separate_
     }
 
     if (zone->last_allocated_node == node) {
-        uint64_t zone_occupied_memory_size = (uint64_t)(node + NODE_HEADER_SIZE + node_representation.size -
-                                                        (BYTE*)zone - ZONE_HEADER_SIZE);
-        uint64_t zone_available_size = zone->total_size - zone_occupied_memory_size;
+        uint64_t zone_available_size = get_zone_not_used_mem_size(zone);
         if (zone_available_size + node_representation.size >= new_size) {
             set_node_size(node, new_size, node_representation.type);
             return TRUE;

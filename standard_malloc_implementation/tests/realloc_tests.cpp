@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <array>
 
 extern "C" {
 #include "malloc_internal.h"
@@ -26,5 +27,40 @@ TEST(Realloc, Large) {
 TEST(Realloc, Tiny_Small) {
     __free_all();
 
+    constexpr uint64_t max_nodes_number_in_tiny_zone = (TINY_ZONE_SIZE - ZONE_HEADER_SIZE) / (16 + NODE_HEADER_SIZE);
+    std::array<void*, max_nodes_number_in_tiny_zone> ptr_arr1{};
+    std::array<void*, max_nodes_number_in_tiny_zone / 2> ptr_arr2{};
 
+    /// fill full zone
+    for (uint64_t i = 0; i < max_nodes_number_in_tiny_zone; ++i) {
+        ptr_arr1[i] = __malloc(16);
+    }
+    ASSERT_EQ(gMemoryZones.first_tiny_zone, gMemoryZones.last_tiny_zone);
+    ASSERT_TRUE(get_zone_not_used_mem_size(gMemoryZones.first_tiny_zone) < 32);
+
+    /// free trough one from the begin
+    for (uint64_t i = 1; i < max_nodes_number_in_tiny_zone; i+=2) {
+        __free(ptr_arr1[i]);
+    }
+    /// last node goes to not used space
+    ASSERT_TRUE(get_zone_not_used_mem_size(gMemoryZones.first_tiny_zone) > 32);
+
+    uint64_t j = 0;
+    for (uint64_t i = 0; i < max_nodes_number_in_tiny_zone; i+=2) {
+        ptr_arr2[j] = __realloc(ptr_arr1[i], 48);
+        ++j;
+    }
+    ASSERT_EQ(gMemoryZones.first_tiny_zone, gMemoryZones.last_tiny_zone);
+    ASSERT_TRUE(get_zone_not_used_mem_size(gMemoryZones.first_tiny_zone) < 32);
+
+    for (uint64_t i = 1; i < ptr_arr2.size(); ++i) {
+        __free(ptr_arr2[i]);
+    }
+    ASSERT_EQ(get_zone_not_used_mem_size(gMemoryZones.first_tiny_zone), TINY_ZONE_SIZE - ZONE_HEADER_SIZE - NODE_HEADER_SIZE - 48);
+
+    ptr_arr2[0] = __realloc(ptr_arr2[0], 112);
+    ASSERT_EQ(get_zone_not_used_mem_size(gMemoryZones.first_tiny_zone), TINY_ZONE_SIZE - ZONE_HEADER_SIZE - NODE_HEADER_SIZE - 112);
+
+    ptr_arr2[0] = __realloc(ptr_arr2[0], 16);
+    ASSERT_EQ(get_zone_not_used_mem_size(gMemoryZones.first_tiny_zone), TINY_ZONE_SIZE - ZONE_HEADER_SIZE - NODE_HEADER_SIZE - 112);
 }

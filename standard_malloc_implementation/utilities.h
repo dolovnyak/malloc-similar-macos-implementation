@@ -271,6 +271,16 @@ static inline void delete_zone_from_list(t_zone** first_zone, t_zone** last_zone
     zone_to_delete->prev = NULL;
 }
 
+static inline uint64_t get_zone_not_used_mem_size(t_zone* zone) {
+    BYTE* last_node = zone->last_allocated_node;
+    if (last_node == NULL) {
+        return zone->total_size;
+    }
+    uint64_t node_size = get_node_size(last_node, get_node_allocation_type(last_node));
+    uint64_t zone_occupied_memory_size = (uint64_t)((last_node + NODE_HEADER_SIZE + node_size) - ((BYTE*)zone + ZONE_HEADER_SIZE));
+    return zone->total_size - zone_occupied_memory_size;
+}
+
 static inline t_allocation_type to_allocation_type(uint64_t size) {
     if (size <= TINE_ALLOCATION_MAX_SIZE) {
         return Tiny;
