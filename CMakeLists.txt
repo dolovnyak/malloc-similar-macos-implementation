@@ -7,17 +7,23 @@ project(malloc)
 set(MALLOC_LIB "${PROJECT_NAME}_lib")
 
 set(MALLOC_LIB_SOURCES
-        "standard_malloc_implementation/malloc.c"
-        "standard_malloc_implementation/zone_management.c"
-        "standard_malloc_implementation/free.c"
-        "standard_malloc_implementation/realloc.c"
+        "macos_similar_malloc_implementation/malloc.c"
+        "macos_similar_malloc_implementation/zone_management.c"
+        "macos_similar_malloc_implementation/free.c"
+        "macos_similar_malloc_implementation/realloc.c"
+        "macos_similar_malloc_implementation/mem_dump.c"
         )
 
 add_library(${MALLOC_LIB}
         ${MALLOC_LIB_SOURCES}
         malloc_wrapper.c
         )
-target_include_directories(${MALLOC_LIB} PUBLIC standard_malloc_implementation/ ./)
+target_include_directories(${MALLOC_LIB} PUBLIC macos_similar_malloc_implementation/ ./)
+
+
+add_executable(example main_example.c)
+target_include_directories(example PUBLIC ./)
+target_link_libraries(example ${MALLOC_LIB})
 
 ################################################################################
 # tests
@@ -30,15 +36,15 @@ set(MALLOC_TESTS ${PROJECT_NAME}_tests)
 add_subdirectory(googletest)
 
 add_executable(${MALLOC_TESTS}
-        standard_malloc_implementation/tests/malloc_tests.cpp
-        standard_malloc_implementation/tests/free_tests.cpp
-        standard_malloc_implementation/tests/utilities_tests.cpp
-        standard_malloc_implementation/tests/realloc_tests.cpp
+        macos_similar_malloc_implementation/tests/malloc_tests.cpp
+        macos_similar_malloc_implementation/tests/free_tests.cpp
+        macos_similar_malloc_implementation/tests/utilities_tests.cpp
+        macos_similar_malloc_implementation/tests/realloc_tests.cpp
         )
 
 target_include_directories(${MALLOC_TESTS} PUBLIC
         googletest/googletest/include
-        standard_malloc_implementation)
+        macos_similar_malloc_implementation)
 
 target_link_libraries(${MALLOC_TESTS}
         gtest

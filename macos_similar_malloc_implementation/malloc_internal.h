@@ -134,3 +134,5 @@ void __free(void* ptr);
 void* __malloc(size_t required_size);
 void* __realloc(void* ptr, size_t new_size);
 void __free_all();
+void __print_alloc_mem();
+void __print_alloc_mem_hex_dump();

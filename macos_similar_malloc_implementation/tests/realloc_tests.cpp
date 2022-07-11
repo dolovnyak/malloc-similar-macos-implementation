@@ -42,6 +42,7 @@ TEST(Realloc, Tiny_Small) {
     for (uint64_t i = 1; i < max_nodes_number_in_tiny_zone; i+=2) {
         __free(ptr_arr1[i]);
     }
+
     /// last node goes to not used space
     ASSERT_TRUE(get_zone_not_used_mem_size(gMemoryZones.first_tiny_zone) > 32);
 
