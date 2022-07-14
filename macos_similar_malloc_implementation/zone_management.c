@@ -5,8 +5,6 @@ void separate_node_on_new_free_node(BYTE* first_node, uint64_t first_node_new_si
     BYTE* second_node = first_node + NODE_HEADER_SIZE + first_node_new_size;
 
     uint64_t second_node_size = get_node_size(first_node, type) - (NODE_HEADER_SIZE + first_node_new_size);
-    uint64_t second_node_zone_start_offset =
-            get_node_zone_start_offset(first_node) + NODE_HEADER_SIZE + first_node_new_size;
 
     /// construct new second new
     construct_node_header(zone, second_node, second_node_size, first_node_new_size,
@@ -32,7 +30,7 @@ void* take_memory_from_free_nodes(t_zone* zone, uint64_t required_size, uint64_t
             delete_node_from_free_list(zone, current_node);
             set_node_available(current_node, FALSE);
 
-            return current_node + NODE_HEADER_SIZE;
+            return (void*)(current_node + NODE_HEADER_SIZE);
         }
     }
 

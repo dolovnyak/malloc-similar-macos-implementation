@@ -1,5 +1,4 @@
 #include "malloc.h"
-#include <stdio.h>
 
 int main() {
     print_alloc_mem();

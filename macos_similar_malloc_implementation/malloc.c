@@ -24,14 +24,14 @@ BOOL init() {
 }
 
 void* __malloc(size_t required_size) {
-    if (required_size == 0) {
-        return NULL;
-    }
-
     if (!gInit) {
         if (!init()) {
             return NULL;
         }
+    }
+
+    if (required_size == 0) {
+        return NULL;
     }
 
     /// 16 byte align (MacOS align).
