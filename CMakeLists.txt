@@ -5,6 +5,10 @@ set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_C_FLAGS "-Wall -Wextra")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 
+if(SAFE_FREE)
+    add_definitions(-D SAFE_FREE)
+endif()
+
 ################################################################################
 # malloc_lib target
 ################################################################################
@@ -36,6 +40,7 @@ target_include_directories(${MALLOC_LIB} PRIVATE macos_similar_malloc_implementa
 set_target_properties(${MALLOC_LIB} PROPERTIES PUBLIC_HEADER malloc.h)
 set_target_properties(${MALLOC_LIB} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set_target_properties(${MALLOC_LIB} PROPERTIES SUFFIX ".so")
+set_target_properties(${MALLOC_LIB} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 
 ################################################################################
 # example
@@ -44,10 +49,7 @@ add_executable(example main_example.c)
 target_include_directories(example PUBLIC ./)
 target_link_libraries(example ${MALLOC_LIB})
 
-set_target_properties(example
-        PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}"
-        )
+set_target_properties(example PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
 ################################################################################
 # tests
@@ -76,7 +78,4 @@ target_link_libraries(${MALLOC_TESTS}
         ${MALLOC_TESTS_LIBRARY}
         )
 
-set_target_properties(${MALLOC_TESTS}
-        PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}"
-        )
+set_target_properties(${MALLOC_TESTS} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}")
