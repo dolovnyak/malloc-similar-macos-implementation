@@ -1,5 +1,7 @@
 #!/bin/bash
 
+git submodule init
+git submodule update
 rm -rf build
 rm -rf executable
 mkdir -p build
