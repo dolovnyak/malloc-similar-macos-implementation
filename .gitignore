@@ -2,3 +2,8 @@
 *.idea/
 *cmake-build-debug/
 malloc_tests
+*a.out*
+build
+example
+*.so*
+ft_malloc_tests
