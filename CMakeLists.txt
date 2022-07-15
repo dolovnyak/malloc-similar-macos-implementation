@@ -13,7 +13,7 @@ endif()
 # malloc_lib target
 ################################################################################
 
-if (NOT DEFINED $ENV{HOSTTYPE})
+if (NOT DEFINED ENV{HOSTTYPE})
     execute_process (COMMAND bash -c "uname -m" OUTPUT_VARIABLE MACHINE_NAME)
     string(STRIP ${MACHINE_NAME} MACHINE_NAME)
     execute_process (COMMAND bash -c "uname -s" OUTPUT_VARIABLE KERNEL_NAME)
