@@ -43,6 +43,16 @@ set_target_properties(${MALLOC_LIB} PROPERTIES SUFFIX ".so")
 set_target_properties(${MALLOC_LIB} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 
 ################################################################################
+# set symbolic link
+################################################################################
+SET(LIB_LINK ${PROJECT_SOURCE_DIR}/libft_malloc.so)
+SET(LIB ${PROJECT_SOURCE_DIR}/${MALLOC_LIB}.so)
+add_custom_target(symbolic_link ALL
+        COMMAND ln -fs ${LIB} ${LIB_LINK}
+        DEPENDS ${MALLOC_LIB}
+        COMMENT "Generating symbolic link")
+
+################################################################################
 # example
 ################################################################################
 add_executable(example main_example.c)
