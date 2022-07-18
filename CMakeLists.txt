@@ -2,11 +2,15 @@ cmake_minimum_required(VERSION 3.21)
 project(ft_malloc DESCRIPTION "MacOS malloc implementation")
 
 set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_C_FLAGS "-Wall -Wextra")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
+set(CMAKE_C_FLAGS "-Wall -Wextra")
 
 if(SAFE_FREE)
     add_definitions(-D SAFE_FREE)
+endif()
+
+if (THREAD_SAFE)
+    add_definitions(-D THREAD_SAFE)
 endif()
 
 ################################################################################
@@ -80,7 +84,8 @@ add_executable(${MALLOC_TESTS}
 
 target_include_directories(${MALLOC_TESTS} PUBLIC
         googletest/googletest/include
-        macos_similar_malloc_implementation)
+        macos_similar_malloc_implementation
+        )
 
 target_link_libraries(${MALLOC_TESTS}
         gtest

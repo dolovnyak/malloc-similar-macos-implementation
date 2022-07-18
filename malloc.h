@@ -6,9 +6,13 @@ void *malloc(size_t size);
 
 void *realloc(void *ptr, size_t size);
 
-void free_all();
+void* calloc(size_t count, size_t size);
+
+void* valloc(size_t size);
 
 void free(void *ptr);
+
+void free_all();
 
 void print_alloc_mem();
 

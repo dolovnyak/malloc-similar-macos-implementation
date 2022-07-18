@@ -121,8 +121,8 @@ BOOL init();
 void* take_memory_from_zone_list(t_zone* first_zone, uint64_t required_size, uint64_t separate_size, t_allocation_type type);
 void* take_memory_from_zone(t_zone* zone, uint64_t required_size, uint64_t separate_size, t_allocation_type type);
 void* take_memory_from_free_nodes(t_zone* zone, uint64_t required_size, uint64_t separate_size, t_allocation_type type);
-void separate_node_on_new_free_node(BYTE* first_node, uint64_t first_node_new_size, t_zone* zone, t_allocation_type type);
-BOOL reallocate_memory_in_zone(BYTE* node, uint64_t new_size, uint64_t separate_size);
+void take_away_node_part_and_make_it_available(BYTE* first_node, uint64_t first_node_new_size, t_zone* zone, t_allocation_type type);
+BOOL reallocate_memory_in_zone(BYTE* raw_node, uint64_t new_size, uint64_t separate_size);
 
 t_zone* create_new_zone(size_t size);
 

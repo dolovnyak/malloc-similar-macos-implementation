@@ -18,15 +18,15 @@ TEST(Split_Node, Check_Correct) {
     zone->total_size = TEST_ZONE_SIZE - ZONE_HEADER_SIZE;
 
     BYTE* node = ((BYTE*)zone + ZONE_HEADER_SIZE + 248);
-    construct_node_header(zone, node, 128, 52, TRUE, Tiny);
-    add_node_to_free_list(zone, node);
+    construct_node_header(zone, node, 128, 52, Tiny);
+    add_node_to_available_list(zone, node);
 
     BYTE* last_free_node = ((BYTE*)zone + ZONE_HEADER_SIZE);
-    construct_node_header(zone, last_free_node, 16, 0, TRUE, Tiny);
-    add_node_to_free_list(zone, last_free_node);
+    construct_node_header(zone, last_free_node, 16, 0, Tiny);
+    add_node_to_available_list(zone, last_free_node);
 
     size_t first_node_new_size = 48;
-    separate_node_on_new_free_node(node, first_node_new_size, zone, Tiny);
+    take_away_node_part_and_make_it_available(node, first_node_new_size, zone, Tiny);
     BYTE* new_node = node + NODE_HEADER_SIZE + get_node_size(node, Tiny);
 
     ASSERT_EQ(get_node_size(node, Tiny), 48);
@@ -92,16 +92,16 @@ TEST(Take_Mem_From_Free_Nodes, Check_Without_Separated) {
         occupied_zone->next = zone;
 
         BYTE* node1 = test_zone + ZONE_HEADER_SIZE;
-        construct_node_header(zone, node1, 38, 0, TRUE, Tiny);
-        add_node_to_free_list(zone, node1);
+        construct_node_header(zone, node1, 38, 0, Tiny);
+        add_node_to_available_list(zone, node1);
 
         BYTE* node2 = node1 + NODE_HEADER_SIZE + get_node_size(node1, Tiny);
-        construct_node_header(zone, node2, 26, get_node_size(node1, Tiny),  TRUE, Tiny);
-        add_node_to_free_list(zone, node2);
+        construct_node_header(zone, node2, 26, get_node_size(node1, Tiny), Tiny);
+        add_node_to_available_list(zone, node2);
 
         BYTE* node3 = node2 + NODE_HEADER_SIZE + get_node_size(node2, Tiny);
-        construct_node_header(zone, node3, 64, get_node_size(node2, Tiny), TRUE, Tiny);
-        add_node_to_free_list(zone, node3);
+        construct_node_header(zone, node3, 64, get_node_size(node2, Tiny), Tiny);
+        add_node_to_available_list(zone, node3);
 
         void* mem = take_memory_from_zone_list(occupied_zone, 16, 64, Tiny);
         ASSERT_TRUE(mem != nullptr);
@@ -131,16 +131,16 @@ TEST(Take_Mem_From_Free_Nodes, Check_Without_Separated) {
         occupied_zone->next = zone;
 
         BYTE* node1 = test_zone + ZONE_HEADER_SIZE;
-        construct_node_header(zone, node1, 38, 0, TRUE, Tiny);
-        add_node_to_free_list(zone, node1);
+        construct_node_header(zone, node1, 38, 0, Tiny);
+        add_node_to_available_list(zone, node1);
 
         BYTE* node2 = node1 + NODE_HEADER_SIZE + get_node_size(node1, Tiny);
-        construct_node_header(zone, node2, 26, get_node_size(node1, Tiny),  TRUE, Tiny);
-        add_node_to_free_list(zone, node2);
+        construct_node_header(zone, node2, 26, get_node_size(node1, Tiny), Tiny);
+        add_node_to_available_list(zone, node2);
 
         BYTE* node3 = node2 + NODE_HEADER_SIZE + get_node_size(node2, Tiny);
-        construct_node_header(zone, node3, 111, get_node_size(node2, Tiny), TRUE, Tiny); // in 112 it will be separate
-        add_node_to_free_list(zone, node3);
+        construct_node_header(zone, node3, 111, get_node_size(node2, Tiny), Tiny); // in 112 it will be separate
+        add_node_to_available_list(zone, node3);
 
         void* mem = take_memory_from_zone_list(occupied_zone, 48, 64, Tiny);
         ASSERT_TRUE(mem != nullptr);
@@ -171,16 +171,16 @@ TEST(Take_Mem_From_Free_Nodes, Check_Without_Separated) {
         occupied_zone->next = zone;
 
         BYTE* node1 = test_zone + ZONE_HEADER_SIZE;
-        construct_node_header(zone, node1, 38, 0, TRUE, Tiny);
-        add_node_to_free_list(zone, node1);
+        construct_node_header(zone, node1, 38, 0, Tiny);
+        add_node_to_available_list(zone, node1);
 
         BYTE* node2 = node1 + NODE_HEADER_SIZE + get_node_size(node1, Tiny);
-        construct_node_header(zone, node2, 56, get_node_size(node1, Tiny),  TRUE, Tiny);
-        add_node_to_free_list(zone, node2);
+        construct_node_header(zone, node2, 56, get_node_size(node1, Tiny), Tiny);
+        add_node_to_available_list(zone, node2);
 
         BYTE* node3 = node2 + NODE_HEADER_SIZE + get_node_size(node2, Tiny);
-        construct_node_header(zone, node3, 64, get_node_size(node2, Tiny), TRUE, Tiny);
-        add_node_to_free_list(zone, node3);
+        construct_node_header(zone, node3, 64, get_node_size(node2, Tiny), Tiny);
+        add_node_to_available_list(zone, node3);
 
 
         void* mem = take_memory_from_zone_list(occupied_zone, 48, 64, Tiny);
@@ -231,16 +231,16 @@ TEST(Take_Mem_From_Free_Nodes, Check_With_Separated) {
         occupied_zone->next = zone;
 
         BYTE* node1 = test_zone + ZONE_HEADER_SIZE;
-        construct_node_header(zone, node1, 136, 0, TRUE, Tiny);
-        add_node_to_free_list(zone, node1);
+        construct_node_header(zone, node1, 136, 0, Tiny);
+        add_node_to_available_list(zone, node1);
 
         BYTE* node2 = node1 + NODE_HEADER_SIZE + get_node_size(node1, Tiny);
-        construct_node_header(zone, node2, 162, get_node_size(node1, Tiny), TRUE, Tiny);
-        add_node_to_free_list(zone, node2);
+        construct_node_header(zone, node2, 162, get_node_size(node1, Tiny), Tiny);
+        add_node_to_available_list(zone, node2);
 
         BYTE* node3 = node2 + NODE_HEADER_SIZE + get_node_size(node2, Tiny);
-        construct_node_header(zone, node3, 181, get_node_size(node2, Tiny), TRUE, Tiny);
-        add_node_to_free_list(zone, node3);
+        construct_node_header(zone, node3, 181, get_node_size(node2, Tiny), Tiny);
+        add_node_to_available_list(zone, node3);
 
         void* mem = take_memory_from_zone_list(occupied_zone, 48, 64, Tiny);
         ASSERT_TRUE(mem != nullptr);
@@ -278,16 +278,16 @@ TEST(Take_Mem_From_Free_Nodes, Check_With_Separated) {
 
         /// check middle node
         BYTE* node1 = test_zone + ZONE_HEADER_SIZE;
-        construct_node_header(zone, node1, 47, 0, TRUE, Tiny);
-        add_node_to_free_list(zone, node1);
+        construct_node_header(zone, node1, 47, 0, Tiny);
+        add_node_to_available_list(zone, node1);
 
         BYTE* node2 = node1 + NODE_HEADER_SIZE + get_node_size(node1, Tiny);
-        construct_node_header(zone, node2, 162, get_node_size(node1, Tiny), TRUE, Tiny);
-        add_node_to_free_list(zone, node2);
+        construct_node_header(zone, node2, 162, get_node_size(node1, Tiny), Tiny);
+        add_node_to_available_list(zone, node2);
 
         BYTE* node3 = node2 + NODE_HEADER_SIZE + get_node_size(node2, Tiny);
-        construct_node_header(zone, node3, 181, get_node_size(node2, Tiny), TRUE, Tiny);
-        add_node_to_free_list(zone, node3);
+        construct_node_header(zone, node3, 181, get_node_size(node2, Tiny), Tiny);
+        add_node_to_available_list(zone, node3);
 
         void* mem = take_memory_from_zone_list(occupied_zone, 48, 64, Tiny);
         ASSERT_TRUE(mem != nullptr);
@@ -334,16 +334,16 @@ TEST(Take_Mem_From_Free_Nodes, Check_With_Separated) {
         occupied_zone->next = zone;
 
         BYTE* node1 = test_zone + ZONE_HEADER_SIZE;
-        construct_node_header(zone, node1, 47, 0, TRUE, Tiny);
-        add_node_to_free_list(zone, node1);
+        construct_node_header(zone, node1, 47, 0, Tiny);
+        add_node_to_available_list(zone, node1);
 
         BYTE* node2 = node1 + NODE_HEADER_SIZE + get_node_size(node1, Tiny);
-        construct_node_header(zone, node2, 22, get_node_size(node1, Tiny), TRUE, Tiny);
-        add_node_to_free_list(zone, node2);
+        construct_node_header(zone, node2, 22, get_node_size(node1, Tiny), Tiny);
+        add_node_to_available_list(zone, node2);
 
         BYTE* node3 = node2 + NODE_HEADER_SIZE + get_node_size(node2, Tiny);
-        construct_node_header(zone, node3, 181, get_node_size(node2, Tiny), TRUE, Tiny);
-        add_node_to_free_list(zone, node3);
+        construct_node_header(zone, node3, 181, get_node_size(node2, Tiny), Tiny);
+        add_node_to_available_list(zone, node3);
 
         void* mem = take_memory_from_zone_list(occupied_zone, 48, 64, Tiny);
         ASSERT_TRUE(mem != nullptr);
@@ -384,7 +384,7 @@ TEST(Take_Memory_From_Zone, Main_Check) {
 
     BYTE* last_allocated_node =
     (BYTE*)occupied_zone + (occupied_zone->total_size + ZONE_HEADER_SIZE) - NODE_HEADER_SIZE - 16;
-    construct_node_header(occupied_zone, last_allocated_node, 16, 16, FALSE, Tiny);
+    construct_node_header(occupied_zone, last_allocated_node, 16, 16, Tiny);
     occupied_zone->last_allocated_node = last_allocated_node; // there is no space for any other node
 
     {
@@ -419,29 +419,23 @@ TEST(Take_Memory_From_Zone, Main_Check) {
     {
         /// check with not suitable free nodes
         bzero(test_zone, TEST_ZONE_SIZE);
+        t_zone* zone = (t_zone*)test_zone;
 
         BYTE* node1 = test_zone + ZONE_HEADER_SIZE;
-        set_node_size(node1, 16, Tiny);
-        set_prev_node_size(node1, 0);
-        set_node_zone_start_offset(node1, ZONE_HEADER_SIZE);
-        set_node_available(node1, TRUE);
-        set_node_allocation_type(node1, Tiny);
+        construct_node_header(zone, node1, 16, 0, Tiny);
 
         BYTE* node2 = node1 + NODE_HEADER_SIZE + get_node_size(node1, Tiny);
-        set_node_size(node2, 32, Tiny);
-        set_prev_node_size(node2, get_node_size(node1, Tiny));
-        set_node_zone_start_offset(node2, get_node_zone_start_offset(node1) + NODE_HEADER_SIZE + get_node_size(node1, Tiny));
-        set_node_available(node2, TRUE);
-        set_node_allocation_type(node2, Tiny);
-        set_next_free_node(node1, node2);
+        construct_node_header(zone, node2, 32, get_node_size(node1, Tiny), Tiny);
 
-        t_zone* zone = (t_zone*)test_zone;
         zone->last_allocated_node = node2; // zone is completely free
         zone->total_size = TEST_ZONE_SIZE - sizeof(t_zone);
-        zone->first_free_node = node1;
-        zone->last_free_node = node2;
+        zone->first_free_node = nullptr;
+        zone->last_free_node = nullptr;
         occupied_zone->next = zone;
         zone->next = nullptr;
+
+        add_node_to_available_list(zone, node1);
+        add_node_to_available_list(zone, node2);
 
         void* mem = take_memory_from_zone_list(occupied_zone, 48, 64, Tiny);
         ASSERT_TRUE(mem != nullptr);

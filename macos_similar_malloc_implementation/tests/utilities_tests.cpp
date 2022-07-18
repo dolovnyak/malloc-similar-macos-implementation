@@ -44,6 +44,11 @@ TYPED_TEST_P(Node_Header_Operations_Test, Check_All) {
         for (auto value: TestClass::test_struct.test_values) {
             ptr_set_func(node_header, value);
             ASSERT_EQ(ptr_get_func(node_header), value) << "Func type: " << TestClass::test_struct.func_name_list[i];
+            ptr_set_func(node_header, (TypeParam)0);
+
+            for (int j = 0; j < 16; ++j) {
+                ASSERT_EQ(node_header[j], 0);
+            }
         }
     }
 }
@@ -117,4 +122,134 @@ TEST(List_Operations, Zone_List) {
     delete_zone_from_list(&zone_list_start, &zone_list_end, &zone3);
     ASSERT_EQ(zone_list_start, nullptr);
     ASSERT_EQ(zone_list_end, nullptr);
+}
+
+TEST(List_Operations, Node_List) {
+    t_zone* zone = gMemoryZones.first_tiny_zone;
+    BYTE* node1 = (BYTE*)zone + ZONE_HEADER_SIZE;
+    construct_node_header(zone, node1, 16, 0, Tiny);
+
+    BYTE* node2 = node1 + NODE_HEADER_SIZE + get_node_size(node1, Tiny);
+    construct_node_header(zone, node2, 32, get_node_size(node1, Tiny), Tiny);
+
+    BYTE* node3 = node2 + NODE_HEADER_SIZE + get_node_size(node2, Tiny);
+    construct_node_header(zone, node3, 48, get_node_size(node2, Tiny),  Tiny);
+
+    BYTE* node4 = node3 + NODE_HEADER_SIZE + get_node_size(node3, Tiny);
+    construct_node_header(zone, node4, 64, get_node_size(node3, Tiny),  Tiny);
+
+    BYTE* node5 = node4 + NODE_HEADER_SIZE + get_node_size(node4, Tiny);
+    construct_node_header(zone, node5, 128, get_node_size(node4, Tiny),  Tiny);
+
+
+    zone->first_free_node = NULL;
+    zone->last_free_node = NULL;
+    zone->last_allocated_node = node5;
+
+    add_node_to_available_list(zone, node1);
+    ASSERT_EQ(zone->first_free_node, node1);
+    ASSERT_EQ(zone->last_free_node, node1);
+
+    add_node_to_available_list(zone, node2);
+    ASSERT_EQ(get_next_free_node(zone, node1), node2);
+    ASSERT_EQ(zone->first_free_node, node1);
+    ASSERT_EQ(zone->last_free_node, node2);
+
+    add_node_to_available_list(zone, node3);
+    ASSERT_EQ(get_next_free_node(zone, node2), node3);
+    ASSERT_EQ(zone->first_free_node, node1);
+    ASSERT_EQ(zone->last_free_node, node3);
+
+    add_node_to_available_list(zone, node4);
+    ASSERT_EQ(get_next_free_node(zone, node3), node4);
+    ASSERT_EQ(zone->first_free_node, node1);
+    ASSERT_EQ(zone->last_free_node, node4);
+
+    add_node_to_available_list(zone, node5);
+    ASSERT_EQ(get_next_free_node(zone, node1), node2);
+    ASSERT_EQ(get_next_free_node(zone, node2), node3);
+    ASSERT_EQ(get_next_free_node(zone, node3), node4);
+    ASSERT_EQ(get_next_free_node(zone, node4), node5);
+    ASSERT_EQ(zone->first_free_node, node1);
+    ASSERT_EQ(zone->last_free_node, node5);
+
+    delete_node_from_available_list(zone, node2);
+    ASSERT_EQ(get_next_free_node(zone, node1), node3);
+    ASSERT_EQ(get_next_free_node(zone, node3), node4);
+    ASSERT_EQ(get_next_free_node(zone, node4), node5);
+    ASSERT_EQ(zone->first_free_node, node1);
+    ASSERT_EQ(zone->last_free_node, node5);
+
+    delete_node_from_available_list(zone, node4);
+    ASSERT_EQ(get_next_free_node(zone, node1), node3);
+    ASSERT_EQ(get_next_free_node(zone, node3), node5);
+    ASSERT_EQ(zone->first_free_node, node1);
+    ASSERT_EQ(zone->last_free_node, node5);
+
+    delete_node_from_available_list(zone, node3);
+    ASSERT_EQ(get_next_free_node(zone, node1), node5);
+    ASSERT_EQ(zone->first_free_node, node1);
+    ASSERT_EQ(zone->last_free_node, node5);
+
+    add_node_to_available_list(zone, node4);
+    ASSERT_EQ(get_prev_free_node(zone, node1), nullptr);
+    ASSERT_EQ(get_next_free_node(zone, node1), node5);
+    ASSERT_EQ(get_prev_free_node(zone, node5), node1);
+    ASSERT_EQ(get_next_free_node(zone, node5), node4);
+    ASSERT_EQ(get_prev_free_node(zone, node4), node5);
+    ASSERT_EQ(get_next_free_node(zone, node4), nullptr);
+    ASSERT_EQ(zone->first_free_node, node1);
+    ASSERT_EQ(zone->last_free_node, node4);
+
+    delete_node_from_available_list(zone, node1);
+    ASSERT_EQ(get_prev_free_node(zone, node5), nullptr);
+    ASSERT_EQ(get_next_free_node(zone, node5), node4);
+    ASSERT_EQ(get_prev_free_node(zone, node4), node5);
+    ASSERT_EQ(get_next_free_node(zone, node4), nullptr);
+    ASSERT_EQ(zone->first_free_node, node5);
+    ASSERT_EQ(zone->last_free_node, node4);
+
+    delete_node_from_available_list(zone, node5);
+    ASSERT_EQ(get_next_free_node(zone, node4), nullptr);
+    ASSERT_EQ(get_prev_free_node(zone, node4), nullptr);
+    ASSERT_EQ(zone->first_free_node, node4);
+    ASSERT_EQ(zone->last_free_node, node4);
+
+    delete_node_from_available_list(zone, node4);
+    ASSERT_EQ(zone->first_free_node, nullptr);
+    ASSERT_EQ(zone->last_free_node, nullptr);
+
+    add_node_to_available_list(zone, node2);
+    ASSERT_EQ(zone->first_free_node, node2);
+    ASSERT_EQ(zone->last_free_node, node2);
+    ASSERT_EQ(get_prev_free_node(zone, node2), nullptr);
+    ASSERT_EQ(get_next_free_node(zone, node2), nullptr);
+
+    add_node_to_available_list(zone, node1);
+    ASSERT_EQ(zone->first_free_node, node2);
+    ASSERT_EQ(zone->last_free_node, node1);
+    ASSERT_EQ(get_prev_free_node(zone, node2), nullptr);
+    ASSERT_EQ(get_next_free_node(zone, node2), node1);
+    ASSERT_EQ(get_prev_free_node(zone, node1), node2);
+    ASSERT_EQ(get_next_free_node(zone, node1), nullptr);
+
+    delete_node_from_available_list(zone, node1);
+    ASSERT_EQ(zone->first_free_node, node2);
+    ASSERT_EQ(zone->last_free_node, node2);
+    ASSERT_EQ(get_prev_free_node(zone, node2), nullptr);
+    ASSERT_EQ(get_next_free_node(zone, node2), nullptr);
+
+    delete_node_from_available_list(zone, node2);
+    ASSERT_EQ(zone->first_free_node, nullptr);
+    ASSERT_EQ(zone->last_free_node, nullptr);
+
+    ASSERT_EQ(get_next_node(zone, node1), node2);
+    ASSERT_EQ(get_next_node(zone, node2), node3);
+    ASSERT_EQ(get_next_node(zone, node3), node4);
+    ASSERT_EQ(get_next_node(zone, node4), node5);
+
+    ASSERT_EQ(get_prev_node(zone, node5), node4);
+    ASSERT_EQ(get_prev_node(zone, node4), node3);
+    ASSERT_EQ(get_prev_node(zone, node3), node2);
+    ASSERT_EQ(get_prev_node(zone, node2), node1);
 }

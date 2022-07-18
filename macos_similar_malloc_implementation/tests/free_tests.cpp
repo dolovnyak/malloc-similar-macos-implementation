@@ -7,7 +7,7 @@ extern "C" {
 }
 
 TEST(Free_All, Check_Correct) {
-    void* mem = __malloc(10);
+    __malloc(10);
     ASSERT_EQ(gInit, true);
 
     __free_all();
@@ -37,7 +37,7 @@ TEST(Free, Large) {
     ASSERT_EQ(gMemoryZones.last_large_allocation, nullptr);
 }
 
-TEST(Free, Tiny_Small) {
+TEST(Free, Tiny_Small_Basic) {
     __free_all();
     std::array<void*, 60000> ptr_arr{};
 
@@ -79,6 +79,7 @@ TEST(Free, Tiny_Small) {
         for (uint64_t i = 0; i < 1000; i+=2) {
                 __free(ptr_arr[i]);
         }
+
         uint64_t idx = 0;
         for (BYTE* node = (BYTE*)zone + ZONE_HEADER_SIZE; node != zone->last_allocated_node; node += NODE_HEADER_SIZE + 16) {
             if (idx % 2 == 0) {

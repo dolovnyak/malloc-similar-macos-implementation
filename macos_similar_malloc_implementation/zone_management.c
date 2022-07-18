@@ -1,34 +1,61 @@
 #include "malloc_internal.h"
 #include "utilities.h"
 
-void separate_node_on_new_free_node(BYTE* first_node, uint64_t first_node_new_size, t_zone* zone, t_allocation_type type) {
-    BYTE* second_node = first_node + NODE_HEADER_SIZE + first_node_new_size;
+void take_away_node_part_and_make_it_available(BYTE* first_node, uint64_t first_node_new_size, t_zone* zone,
+                                               t_allocation_type type) {
+    if (first_node == zone->last_allocated_node) {
+        set_node_size(first_node, first_node_new_size, type);
+        return;
+    }
 
+    BYTE* second_node = first_node + NODE_HEADER_SIZE + first_node_new_size;
     uint64_t second_node_size = get_node_size(first_node, type) - (NODE_HEADER_SIZE + first_node_new_size);
 
-    /// construct new second new
-    construct_node_header(zone, second_node, second_node_size, first_node_new_size,
-                          TRUE, type);
-    add_node_to_free_list(zone, second_node);
+    /// construct new second node
+    construct_node_header(zone, second_node, second_node_size, first_node_new_size, type);
+    add_node_to_available_list(zone, second_node);
+
+    /// update prev node size into node after current for correct node chaining
+    set_prev_node_size(get_next_node(zone, first_node), second_node_size);
 
     /// update first node size
     set_node_size(first_node, first_node_new_size, type);
 }
 
-void* take_memory_from_free_nodes(t_zone* zone, uint64_t required_size, uint64_t separate_size, t_allocation_type type) {
+void merge_node_with_prev_set_both_occupied(t_zone* zone, t_node_representation* node_to_delete) {
+    t_node_representation prev_node = get_node_representation(node_to_delete->prev_node);
+
+    if (node_to_delete->available) {
+        delete_node_from_available_list(zone, node_to_delete->raw_node);
+    }
+    if (prev_node.available) {
+        delete_node_from_available_list(zone, prev_node.raw_node);
+    }
+
+    uint64_t union_size = prev_node.size + NODE_HEADER_SIZE + node_to_delete->size;
+    set_node_size(prev_node.raw_node, union_size, prev_node.type);
+
+    if (node_to_delete->raw_node == zone->last_allocated_node) {
+        zone->last_allocated_node = prev_node.raw_node;
+    }
+    else {
+        set_prev_node_size(node_to_delete->next_node, union_size);
+    }
+}
+
+void*
+take_memory_from_free_nodes(t_zone* zone, uint64_t required_size, uint64_t separate_size, t_allocation_type type) {
     for (BYTE* current_node = zone->first_free_node;
          current_node != NULL; current_node = get_next_free_node(zone, current_node)) {
+
         t_node_representation current_node_representation = get_node_representation(current_node);
 
         if (current_node_representation.size >= required_size) {
+            delete_node_from_available_list(zone, current_node);
 
-            /// split node if it has enough free space
             if (current_node_representation.size - required_size >= separate_size) {
-                separate_node_on_new_free_node(current_node, required_size, zone, type);
+                take_away_node_part_and_make_it_available(current_node, required_size, zone, type);
             }
-
-            delete_node_from_free_list(zone, current_node);
-            set_node_available(current_node, FALSE);
 
             return (void*)(current_node + NODE_HEADER_SIZE);
         }
@@ -53,8 +80,7 @@ void* take_not_marked_memory_from_zone(t_zone* zone, uint64_t required_size, t_a
     if (zone_available_size >= NODE_HEADER_SIZE + required_size) {
         BYTE* node = (BYTE*)zone + ZONE_HEADER_SIZE + zone_occupied_memory_size;
 
-        construct_node_header(zone, node, required_size, last_allocated_node_size,
-                              FALSE, type);
+        construct_node_header(zone, node, required_size, last_allocated_node_size, type);
 
         zone->last_allocated_node = node;
         return (void*)(node + NODE_HEADER_SIZE);
@@ -68,7 +94,8 @@ void* take_memory_from_zone(t_zone* zone, uint64_t required_size, uint64_t separ
     if (mem) {
         return mem;
     }
-    return take_not_marked_memory_from_zone(zone, required_size, type);
+    mem = take_not_marked_memory_from_zone(zone, required_size, type);
+    return mem;
 }
 
 void* take_memory_from_zone_list(t_zone* first_zone, uint64_t required_size, uint64_t separate_size,
@@ -90,38 +117,20 @@ void clear_zone_list(t_zone* current_zone) {
     }
 }
 
-static inline void delete_node(t_zone* zone, t_node_representation* node_to_delete) {
-    t_node_representation prev_node_representation = get_node_representation(node_to_delete->prev_node);
-
-    uint64_t new_size = prev_node_representation.size + NODE_HEADER_SIZE + node_to_delete->size;
-    set_node_size(prev_node_representation.raw_node, new_size, prev_node_representation.type);
-
-    if (node_to_delete->raw_node == zone->last_allocated_node) {
-        zone->last_allocated_node = prev_node_representation.raw_node;
-    }
-
-    if (node_to_delete->next_node != NULL) {
-        set_prev_node_size(node_to_delete->next_node, new_size);
-    }
-}
-
 void free_memory_in_zone_list(t_zone** first_zone, t_zone** last_zone, BYTE* node) {
     t_node_representation current_node_representation = get_node_representation(node);
     t_zone* zone = current_node_representation.zone;
 
     /// merge with prev node if possible
     if (current_node_representation.prev_node != NULL && get_node_available(current_node_representation.prev_node)) {
-        delete_node_from_free_list(zone, current_node_representation.prev_node);
-        delete_node(zone, &current_node_representation);
+        merge_node_with_prev_set_both_occupied(zone, &current_node_representation);
         current_node_representation = get_node_representation(current_node_representation.prev_node);
     }
 
     /// merge with next node if possible
     if (current_node_representation.next_node != NULL && get_node_available(current_node_representation.next_node)) {
         t_node_representation next_node_representation = get_node_representation(current_node_representation.next_node);
-        delete_node_from_free_list(zone, next_node_representation.raw_node);
-
-        delete_node(zone, &next_node_representation);
+        merge_node_with_prev_set_both_occupied(zone, &next_node_representation);
         current_node_representation = get_node_representation(current_node_representation.raw_node);
     }
 
@@ -149,23 +158,20 @@ void free_memory_in_zone_list(t_zone** first_zone, t_zone** last_zone, BYTE* nod
         zone->last_allocated_node = current_node_representation.prev_node;
         return;
     }
-
-    set_node_available(current_node_representation.raw_node, TRUE);
-    add_node_to_free_list(zone, current_node_representation.raw_node);
+    add_node_to_available_list(zone, current_node_representation.raw_node);
 }
 
-BOOL reallocate_memory_in_zone(BYTE* node, uint64_t new_size, uint64_t separate_size) {
-    t_node_representation node_representation = get_node_representation(node);
+BOOL reallocate_memory_in_zone(BYTE* raw_node, uint64_t new_size, uint64_t separate_size) {
+    t_node_representation node_representation = get_node_representation(raw_node);
     t_zone* zone = node_representation.zone;
 
     if (node_representation.size >= new_size) {
         return TRUE;
     }
 
-    if (zone->last_allocated_node == node) {
-        uint64_t zone_available_size = get_zone_not_used_mem_size(zone);
-        if (zone_available_size + node_representation.size >= new_size) {
-            set_node_size(node, new_size, node_representation.type);
+    if (zone->last_allocated_node == raw_node) {
+        if (get_zone_not_used_mem_size(zone) + node_representation.size >= new_size) {
+            set_node_size(raw_node, new_size, node_representation.type);
             return TRUE;
         }
     }
@@ -176,27 +182,20 @@ BOOL reallocate_memory_in_zone(BYTE* node, uint64_t new_size, uint64_t separate_
         uint64_t union_node_size = node_representation.size + NODE_HEADER_SIZE + next_node_representation.size;
 
         if (union_node_size >= new_size) {
-            delete_node_from_free_list(zone, next_node_representation.raw_node);
-            set_node_size(node, union_node_size, node_representation.type);
-
-            if (zone->last_allocated_node == next_node_representation.raw_node) {
-                zone->last_allocated_node = node;
-            }
+            merge_node_with_prev_set_both_occupied(zone, &next_node_representation);
 
             if (union_node_size - new_size >= separate_size) {
-                separate_node_on_new_free_node(node, new_size, zone, node_representation.type);
+                take_away_node_part_and_make_it_available(raw_node, new_size, zone, node_representation.type);
             }
             return TRUE;
         }
 
-        if (zone->last_allocated_node == next_node_representation.raw_node) {
-            uint64_t zone_occupied_memory_size = (uint64_t)(node + NODE_HEADER_SIZE + next_node_representation.size -
-                                                            (BYTE*)zone - ZONE_HEADER_SIZE);
-            uint64_t zone_available_size = zone->total_size - zone_occupied_memory_size;
-            if (node_representation.size + NODE_HEADER_SIZE + next_node_representation.size + zone_available_size >= new_size) {
-                delete_node_from_free_list(zone, next_node_representation.raw_node);
-                set_node_size(node, new_size, node_representation.type);
-                zone->last_allocated_node = node;
+        if (next_node_representation.raw_node == zone->last_allocated_node) {
+            if (node_representation.size + NODE_HEADER_SIZE + next_node_representation.size +
+                get_zone_not_used_mem_size(zone) >= new_size) {
+                delete_node_from_available_list(zone, next_node_representation.raw_node);
+                set_node_size(raw_node, new_size, node_representation.type);
+                zone->last_allocated_node = raw_node;
                 return TRUE;
             }
         }
